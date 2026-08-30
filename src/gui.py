@@ -1,6 +1,7 @@
 ﻿import os
 import sys
 import csv
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSlot, QPropertyAnimation, QEasingCurve, QSize
@@ -83,8 +84,9 @@ class StatCard(QFrame):
 
 class ApiKeyInput(QWidget):
 
-    def __init__(self, label: str, placeholder: str=''):
+    def __init__(self, label: str, placeholder: str='', help_url: str | None = None):
         super().__init__()
+        self._help_url = help_url
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -102,6 +104,21 @@ class ApiKeyInput(QWidget):
         self._toggle_btn.clicked.connect(self._toggle_visibility)
         row.addWidget(self._input)
         row.addWidget(self._toggle_btn)
+        if self._help_url:
+            self._copy_url_btn = QPushButton('📋')
+            self._copy_url_btn.setObjectName('btn_secondary')
+            self._copy_url_btn.setFixedWidth(40)
+            self._copy_url_btn.setFixedHeight(36)
+            self._copy_url_btn.setToolTip(f'取得URLをコピー: {self._help_url}')
+            self._copy_url_btn.clicked.connect(self._copy_help_url)
+            self._open_url_btn = QPushButton('🔗')
+            self._open_url_btn.setObjectName('btn_secondary')
+            self._open_url_btn.setFixedWidth(40)
+            self._open_url_btn.setFixedHeight(36)
+            self._open_url_btn.setToolTip(f'取得URLをブラウザで開く: {self._help_url}')
+            self._open_url_btn.clicked.connect(self._open_help_url)
+            row.addWidget(self._copy_url_btn)
+            row.addWidget(self._open_url_btn)
         layout.addWidget(lbl)
         layout.addLayout(row)
 
@@ -112,6 +129,19 @@ class ApiKeyInput(QWidget):
         else:
             self._input.setEchoMode(QLineEdit.EchoMode.Password)
             self._toggle_btn.setText('👁')
+
+    def _copy_help_url(self) -> None:
+        if not self._help_url:
+            return
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self._help_url)
+        self._copy_url_btn.setText('✓')
+        QTimer.singleShot(1200, lambda: self._copy_url_btn.setText('📋'))
+
+    def _open_help_url(self) -> None:
+        if not self._help_url:
+            return
+        webbrowser.open(self._help_url, new=2)
 
     @property
     def value(self) -> str:
@@ -212,8 +242,8 @@ class MainWindow(QMainWindow):
         api_group = QGroupBox('🔑 API キー設定')
         api_layout = QVBoxLayout(api_group)
         api_layout.setSpacing(10)
-        self._urlscan_input = ApiKeyInput('urlscan.io API キー', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
-        self._gemini_input = ApiKeyInput('Gemini API キー', 'AIzaSy...')
+        self._urlscan_input = ApiKeyInput('urlscan.io API キー', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'https://urlscan.io/user/signup')
+        self._gemini_input = ApiKeyInput('Gemini API キー', 'AIzaSy...', 'https://aistudio.google.com/app/apikey')
         api_layout.addWidget(self._urlscan_input)
         api_layout.addWidget(self._gemini_input)
         save_btn = QPushButton('💾  キーを保存 (.env)')

@@ -30,22 +30,30 @@ chmod +x start.sh
 
 ### 1. urlscan.io API キー（無料枠: 5,000 スキャン/日）
 
-| 手順 | 操作 |
-|:---:|:---|
-| ① | [https://urlscan.io/user/signup](https://urlscan.io/user/signup) で無料アカウントを作成 |
-| ② | ログイン後、右上のユーザーアイコン → **Settings** を開く |
-| ③ | **API Keys** タブ → **Create New API Key** をクリック |
-| ④ | 生成されたキーをアプリ画面の「urlscan.io API キー」欄に貼り付け |
+- 取得URL: [https://urlscan.io/user/signup](https://urlscan.io/user/signup)
+- 画面右の「🔗」ボタンでブラウザを開く
+- 画面右の「📋」ボタンでURLをクリップボードにコピー
+
+手順:
+1. 上のリンクまたはアプリの「🔗」ボタンで取得ページを開く
+2. 無料アカウントを作成
+3. ログイン後、右上のユーザーアイコン → **Settings** を開く
+4. **API Keys** タブ → **Create New API Key** をクリック
+5. 生成されたキーをアプリ画面の「urlscan.io API キー」欄に貼り付け
 
 ---
 
 ### 2. Google Gemini API キー（無料枠: 15 リクエスト/分, 1,500 リクエスト/日）
 
-| 手順 | 操作 |
-|:---:|:---|
-| ① | [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) に Google アカウントでログイン |
-| ② | **Create API Key** をクリック |
-| ③ | 生成されたキーをアプリ画面の「Gemini API キー」欄に貼り付け |
+- 取得URL: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+- 画面右の「🔗」ボタンでブラウザを開く
+- 画面右の「📋」ボタンでURLをクリップボードにコピー
+
+手順:
+1. 上のリンクまたはアプリの「🔗」ボタンで取得ページを開く
+2. Google アカウントでログイン
+3. **Create API Key** をクリック
+4. 生成されたキーをアプリ画面の「Gemini API キー」欄に貼り付け
 
 ---
 
