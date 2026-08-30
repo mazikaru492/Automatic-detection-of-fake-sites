@@ -1,5 +1,6 @@
 @echo off
-chcp 65001 > nul
+:: 日本語 Windows では CP932 (Shift-JIS) を使う
+chcp 932 > nul
 setlocal EnableDelayedExpansion
 
 echo ================================================================
