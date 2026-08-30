@@ -11,6 +11,7 @@ from monitor import DomainMonitor
 from scanner import UrlScanner
 from analyzer import ScamAnalyzer
 from reporter import ExcelReporter
+from key_manager import get_api_key, URLSCAN_KEY_NAME, GEMINI_KEY_NAME
 
 def setup_logging() -> None:
     log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -26,16 +27,25 @@ logger = logging.getLogger(__name__)
 
 def load_config() -> dict:
     load_dotenv()
-    config = {'urlscan_api_key': os.getenv('URLSCAN_API_KEY', ''), 'gemini_api_key': os.getenv('GEMINI_API_KEY', ''), 'excel_template_path': os.getenv('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xls'), 'max_scan_count': int(os.getenv('MAX_SCAN_COUNT', '50')), 'queue_size': int(os.getenv('QUEUE_SIZE', '500'))}
+    urlscan_key = get_api_key(URLSCAN_KEY_NAME) or os.getenv('URLSCAN_API_KEY', '')
+    gemini_key = get_api_key(GEMINI_KEY_NAME) or os.getenv('GEMINI_API_KEY', '')
+    config = {
+        'urlscan_api_key': urlscan_key,
+        'gemini_api_key': gemini_key,
+        'excel_template_path': os.getenv('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'),
+        'max_scan_count': int(os.getenv('MAX_SCAN_COUNT', '50')),
+        'queue_size': int(os.getenv('QUEUE_SIZE', '500'))
+    }
     missing = []
     if not config['urlscan_api_key']:
         missing.append('URLSCAN_API_KEY')
     if not config['gemini_api_key']:
         missing.append('GEMINI_API_KEY')
     if missing:
-        logger.error(f"❌ 必須の環境変数が設定されていません: {', '.join(missing)}\n   .env ファイルを確認してください（.env.example を参照）")
+        logger.error(f"❌ 必須の環境変数が設定されていません: {', '.join(missing)}\n   .env ファイルを確認するか、GUIからキーを保存してください")
         sys.exit(1)
     return config
+
 
 class Pipeline:
 
