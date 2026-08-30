@@ -1,0 +1,27 @@
+# Python 依存ライブラリ固定バージョン
+# pip install -r requirements.txt で一括インストール
+
+# --- デスクトップ GUI ---
+PyQt6==6.7.1
+
+# --- ネットワーク・HTTP ---
+requests==2.32.3
+certstream==1.10
+websocket-client==1.8.0
+
+# --- ドメイン解析 ---
+tldextract==5.1.2
+
+# --- Gemini AI ---
+google-genai==1.26.0
+
+# --- Excel 入出力 ---
+pandas==2.2.3
+openpyxl==3.1.5
+xlrd==1.2.0        # .xls (旧形式) の読み込みに必要
+
+# --- 環境変数管理 ---
+python-dotenv==1.0.1
+
+# --- 型ヒント補助 (Python 3.8 以下との互換) ---
+typing-extensions==4.12.2
