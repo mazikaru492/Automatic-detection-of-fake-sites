@@ -1,110 +1,91 @@
 @echo off
-:: 日本語 Windows では CP932 (Shift-JIS) を使う
-chcp 932 > nul
-setlocal EnableDelayedExpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 echo ================================================================
-echo   日本向け詐欺サイト自動検知システム — Windows セットアップ
+echo   Fake Site Detector - Windows Startup
 echo ================================================================
 echo.
 
-:: ---------------------------------------------------------------
-:: Python バージョン確認
-:: ---------------------------------------------------------------
-python --version > nul 2>&1
-if %errorlevel% neq 0 (
-    echo [エラー] Python が見つかりません。
-    echo         https://www.python.org/downloads/ からインストールしてください。
-    echo         インストール時に "Add Python to PATH" にチェックを入れてください。
+where python >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Python was not found.
+    echo         Install Python 3.10+ from: https://www.python.org/downloads/
+    echo         During installation, enable "Add Python to PATH".
     pause
     exit /b 1
 )
 
 for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYTHON_VER=%%v
-echo [OK] Python %PYTHON_VER% を検出しました
+echo [OK] Python %PYTHON_VER% detected
 
-:: ---------------------------------------------------------------
-:: .env ファイルの確認
-:: ---------------------------------------------------------------
 if not exist ".env" (
     if exist ".env.example" (
         echo.
-        echo [警告] .env ファイルが見つかりません。
-        echo        .env.example をコピーして .env を作成します...
+        echo [WARNING] .env file not found.
+        echo          Copying .env.example to .env...
         copy ".env.example" ".env" > nul
         echo.
         echo ================================================================
-        echo  ★ 重要: .env ファイルを開いてAPIキーを設定してください ★
+        echo  .env was created. Please open it and verify the API keys.
         echo ================================================================
         echo.
-        echo  1. URLSCAN_API_KEY  : https://urlscan.io/user/signup
-        echo  2. GEMINI_API_KEY   : https://aistudio.google.com/app/apikey
+        echo  1. URLSCAN_API_KEY
+        echo  2. GEMINI_API_KEY
         echo.
-        echo  APIキーを設定後、再度 start.bat を実行してください。
+        echo  After setting the keys, run start.bat again.
         echo ================================================================
         start notepad .env
         pause
         exit /b 0
     ) else (
-        echo [エラー] .env.example が見つかりません。リポジトリを正しくクローンしてください。
+        echo [ERROR] .env.example was not found.
         pause
         exit /b 1
     )
 )
 
-:: ---------------------------------------------------------------
-:: 仮想環境の作成（初回のみ）
-:: ---------------------------------------------------------------
 if not exist "venv\" (
     echo.
-    echo [1/3] 仮想環境を作成中...
+    echo [1/3] Creating virtual environment...
     python -m venv venv
-    if %errorlevel% neq 0 (
-        echo [エラー] 仮想環境の作成に失敗しました。
+    if errorlevel 1 (
+        echo [ERROR] Virtual environment creation failed.
         pause
         exit /b 1
     )
-    echo [OK] 仮想環境を作成しました
+    echo [OK] Virtual environment created
 ) else (
-    echo [OK] 仮想環境が既に存在します
+    echo [OK] Virtual environment already exists
 )
 
-:: ---------------------------------------------------------------
-:: pip でライブラリをインストール
-:: ---------------------------------------------------------------
 echo.
-echo [2/3] 必要なライブラリをインストール中...
-echo       （初回は数分かかる場合があります）
+echo [2/3] Installing required libraries...
 call venv\Scripts\activate.bat
 
 python -m pip install --upgrade pip --quiet
 pip install -r requirements.txt
-if %errorlevel% neq 0 (
-    echo [エラー] ライブラリのインストールに失敗しました。
-    echo         インターネット接続を確認してください。
+if errorlevel 1 (
+    echo [ERROR] Dependency installation failed.
+    echo         Check the internet connection and try again.
     pause
     exit /b 1
 )
-echo [OK] ライブラリのインストール完了
+echo [OK] Dependencies installed
 
-:: ---------------------------------------------------------------
-:: main.py の実行
-:: ---------------------------------------------------------------
 echo.
-echo [3/3] デスクトップGUIを起動します...
-echo       ウィンドウを閉じると終了します。
+echo [3/3] Starting desktop GUI...
+echo       Close the window to exit.
 echo.
+
 echo ================================================================
-echo.
-
 cd src
 python gui.py
 cd ..
 
 echo.
 echo ================================================================
-echo  システムが終了しました。
-echo  検知レポートは Excel ファイルとして保存されています。
+echo  System finished.
+echo  Detection reports are saved as Excel files.
 echo ================================================================
 
 call venv\Scripts\deactivate.bat

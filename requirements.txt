@@ -1,7 +1,7 @@
 PyQt6==6.7.1
 requests==2.32.3
 certstream==1.10
-websocket-client==1.8.0
+websocket-client==0.48.0
 tldextract==5.1.2
 google-genai==1.26.0
 pandas==2.2.3

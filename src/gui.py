@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import csv
 from datetime import datetime
@@ -10,7 +10,54 @@ sys.path.insert(0, str(Path(__file__).parent))
 from worker import PipelineWorker
 from key_manager import save_api_key, get_api_key, load_all_keys, URLSCAN_KEY_NAME, GEMINI_KEY_NAME
 COLORS = {'bg_dark': '#0a0e1a', 'bg_panel': '#0f1628', 'bg_card': '#151e35', 'bg_input': '#1a2545', 'accent_cyan': '#00d4ff', 'accent_blue': '#4d9fff', 'accent_green': '#00ff88', 'accent_red': '#ff4757', 'accent_orange': '#ffa502', 'text_primary': '#e8f4f8', 'text_secondary': '#7fa3c0', 'text_dim': '#3d5a78', 'border': '#1e3a5a', 'border_glow': '#00d4ff33'}
-STYLE_SHEET = f"\n/* ===== グローバルスタイル ===== */\nQMainWindow, QWidget {{\n    background-color: {COLORS['bg_dark']};\n    color: {COLORS['text_primary']};\n    font-family: 'Segoe UI', 'Meiryo UI', 'Yu Gothic UI', sans-serif;\n    font-size: 13px;\n}}\n\n/* ===== サイドバー ===== */\n#sidebar {{\n    background-color: {COLORS['bg_panel']};\n    border-right: 1px solid {COLORS['border']};\n}}\n\n/* ===== カード ===== */\n#card {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n}}\n\n/* ===== グループボックス ===== */\nQGroupBox {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    margin-top: 12px;\n    padding: 12px 8px 8px 8px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\nQGroupBox::title {{\n    subcontrol-origin: margin;\n    left: 12px;\n    padding: 0 6px;\n}}\n\n/* ===== 入力フィールド ===== */\nQLineEdit, QSpinBox {{\n    background-color: {COLORS['bg_input']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 6px;\n    padding: 7px 10px;\n    color: {COLORS['text_primary']};\n    font-size: 13px;\n}}\nQLineEdit:focus, QSpinBox:focus {{\n    border: 1px solid {COLORS['accent_cyan']};\n}}\n\n/* ===== ボタン共通 ===== */\nQPushButton {{\n    border-radius: 6px;\n    padding: 9px 18px;\n    font-weight: bold;\n    font-size: 13px;\n    border: none;\n    cursor: pointer;\n}}\nQPushButton:disabled {{\n    opacity: 0.4;\n    background-color: {COLORS['text_dim']};\n    color: {COLORS['bg_dark']};\n}}\n\n/* ===== 開始ボタン ===== */\n#btn_start {{\n    background-color: {COLORS['accent_cyan']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_start:hover {{\n    background-color: #33ddff;\n}}\n#btn_start:pressed {{\n    background-color: #0099cc;\n}}\n\n/* ===== 停止ボタン ===== */\n#btn_stop {{\n    background-color: {COLORS['accent_red']};\n    color: white;\n}}\n#btn_stop:hover {{\n    background-color: #ff6b7a;\n}}\n#btn_stop:pressed {{\n    background-color: #cc2233;\n}}\n\n/* ===== 保存ボタン ===== */\n#btn_save {{\n    background-color: {COLORS['accent_green']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_save:hover {{\n    background-color: #33ffaa;\n}}\n\n/* ===== セカンダリボタン ===== */\n#btn_secondary {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['text_primary']};\n    border: 1px solid {COLORS['border']};\n}}\n#btn_secondary:hover {{\n    border-color: {COLORS['accent_cyan']};\n    color: {COLORS['accent_cyan']};\n}}\n\n/* ===== テキストエリア（ログ） ===== */\nQTextEdit#log_view {{\n    background-color: #050810;\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;\n    font-size: 12px;\n    color: {COLORS['accent_green']};\n    padding: 8px;\n}}\n\n/* ===== タブ ===== */\nQTabWidget::pane {{\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    background-color: {COLORS['bg_panel']};\n}}\nQTabBar::tab {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['text_secondary']};\n    padding: 8px 20px;\n    border: none;\n    border-radius: 6px 6px 0 0;\n    margin-right: 2px;\n    font-weight: bold;\n}}\nQTabBar::tab:selected {{\n    background-color: {COLORS['bg_panel']};\n    color: {COLORS['accent_cyan']};\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n}}\nQTabBar::tab:hover:!selected {{\n    color: {COLORS['text_primary']};\n    background-color: {COLORS['bg_input']};\n}}\n\n/* ===== テーブル ===== */\nQTableWidget {{\n    background-color: {COLORS['bg_panel']};\n    border: none;\n    gridline-color: {COLORS['border']};\n    color: {COLORS['text_primary']};\n    selection-background-color: {COLORS['bg_input']};\n}}\nQTableWidget::item {{\n    padding: 8px;\n    border-bottom: 1px solid {COLORS['border']};\n}}\nQTableWidget::item:selected {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['accent_cyan']};\n}}\nQHeaderView::section {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['accent_cyan']};\n    padding: 8px 12px;\n    border: none;\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n    font-weight: bold;\n    font-size: 12px;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n}}\n\n/* ===== スクロールバー ===== */\nQScrollBar:vertical {{\n    background-color: {COLORS['bg_dark']};\n    width: 8px;\n    border-radius: 4px;\n}}\nQScrollBar::handle:vertical {{\n    background-color: {COLORS['border']};\n    border-radius: 4px;\n    min-height: 30px;\n}}\nQScrollBar::handle:vertical:hover {{\n    background-color: {COLORS['accent_cyan']};\n}}\nQScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{\n    height: 0px;\n}}\n\n/* ===== ステータスバー ===== */\nQStatusBar {{\n    background-color: {COLORS['bg_panel']};\n    border-top: 1px solid {COLORS['border']};\n    color: {COLORS['text_secondary']};\n    font-size: 12px;\n}}\n\n/* ===== プログレスバー ===== */\nQProgressBar {{\n    background-color: {COLORS['bg_input']};\n    border: none;\n    border-radius: 4px;\n    height: 6px;\n    text-align: center;\n    font-size: 0px;\n}}\nQProgressBar::chunk {{\n    background-color: {COLORS['accent_cyan']};\n    border-radius: 4px;\n}}\n\n/* ===== チェックボックス ===== */\nQCheckBox {{\n    color: {COLORS['text_secondary']};\n    spacing: 8px;\n}}\nQCheckBox::indicator {{\n    width: 16px;\n    height: 16px;\n    border: 1px solid {COLORS['border']};\n    border-radius: 3px;\n    background-color: {COLORS['bg_input']};\n}}\nQCheckBox::indicator:checked {{\n    background-color: {COLORS['accent_cyan']};\n    border-color: {COLORS['accent_cyan']};\n}}\n\n/* ===== ラベル ===== */\n#label_title {{\n    font-size: 18px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n    letter-spacing: 2px;\n}}\n#label_subtitle {{\n    font-size: 11px;\n    color: {COLORS['text_dim']};\n    letter-spacing: 1px;\n}}\n#stat_value {{\n    font-size: 28px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\n#stat_label {{\n    font-size: 11px;\n    color: {COLORS['text_secondary']};\n    letter-spacing: 1px;\n}}\n#status_dot_active {{\n    color: {COLORS['accent_green']};\n    font-size: 20px;\n}}\n#status_dot_inactive {{\n    color: {COLORS['text_dim']};\n    font-size: 20px;\n}}\n#status_dot_warning {{\n    color: {COLORS['accent_orange']};\n    font-size: 20px;\n}}\n"
+SCANNING_BANNER = '''
+                                                           -=====+==+====-.
+                                                     .==#%%%%%##%%%%%%%##%%%#*=-
+                                                  -=#%#%##%####%%%%#%%%%####%%##%#==
+                                                =##%%%%#%%%%%%%%%%%%%#%%%####%%#%####+-
+                                              =%#####%#%%*@%%%%%=+%%#%%%%####%#%##%#%%%#=
+                                             -%%%#%##%%%:-%%==#@-:=@%%%###%#%##%####%%%###.
+                 .--+==::                    =%%%#%###@::-%::::@:::-%%#%##%##%%#%#%##%%###%
+           .+*#%%%@@@@@%%%%#+=                #%%##%%%#:::@#--*%-:::%%%%%#%%#%%##%%%%%%%%%%:
+        :*%@%%%%%@@@@@@%%%%%%@@*-              :#####%%+:::=#+%-:::=@%%%%%%%%#%%%%%##%%%%%:
+      =#@@@@%%%%%@@@@@%%%%%%%@@@@%=              *%%%%%%##+###*###%@%%%@%%%@%%%@@%%%%%%%.
+     *%@@@@@%#%%%%@@@@@%%%%%%@@@@@@*              %@%%@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@%
+    #%%@@@%-..-%%%@@@@@%%%%%%@@@@@@%#           +*%##****##%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   #%%%@*:.....:%%@@@@@%%%%%%%@@@@@%%+      .*%*********#%%%%%%%%%%%%%%%%%%%%%%%@@%%@%*
+   %%%%:.........-@@@@@%%%%%%%@@@@%%%%      #%%%%%%%%%%%%%%%%%%%%%%%+*=----::..@@@@%%%.
+  :%%%.............:@@@%%%%%%%@@@@%%%%=              ....:@@....=@=..........::%@@%%@#
+  .%%-...............:#%%%%%%%@@@@%%%%#              ................::::.:::::**-:::::
+   %%...................:=%%%%@@@@%%%%%     +%*=*@@@@@@@@*==+%@@@@#=.:::..::::::::::::::
+   ##....:+++++......+++++..::#@@@%%%%%    @=.. .==@@@@+....-==@@##.........-:::::::::::.
+    -....................:.......:=%%%%   =+....====@@@:...====*@%...........::::::::::.
+    .:::.......................:::-=::-   :*..-=====@@@=.-=====#@@@%.........:::::::.
+    .:::...%#.........-@-...::::::::::::.  **======@@@@@+=====#@@@@+:........-:::::
+    :::::..%@@-.......-@@*.::::::::::::::    -%@@@@@@@%#*#@@@@@@#*:.:........-...::
+    .:::::.................::::::::::::..       ........ ...........::.-%%@%#%%..=#%%####.
+     ::::::..................::::::=--+         ..:-=*#%*  .....==***:%%#%%%%#%%.%%#%%#####%
+      :::.:......:............:.::@@%%%         ######%##     ........%##%%#%%#%%%%%#%%%%%%%%+
+       ........................:#@@@@%#         +##%###%##      #%#%%%%%%%%###%%%%%%%%###%%###*
+         ........**+*:.......:#%@@@@@%           ##%#%#%#%=   ####%%##%%######%%%%#%%#%%%%###%%
+               ...........  :%%%@@@%=            ####%%###%  #%%###%%%%%#%%%#%#%#%%%%%%%#%#####+
+            ==:             ===%%*               *#######%#%%##%%%%#%%%%%%%#%##%%%%%#%%#%#######
+          -=====...-..:   .=====-                :#######%%%%%%###%#%%%%%%%%##%##%%%#%#%#%%###%%
+         ==##******=#  . :========                %%%%%%%%%%%%###%%%%%%%%%%#%#%#%#%%%%##%%%####%
+        ===########**  .==========-               -#%###%#####%%##%%%#-*%%###%######%#%#%#####%%
+       ====#########*+=============:               *%%%%%##%%%##%#%%%%%%%%%#######%%%##%%###%%%#
+      ===-....:#####+*==============                =#%%%%##%%####%%#%#%#%%%%###%%%#%%#%%%%%###%
+     .=+:.....:#####+#========+=====:                 -*******=.  -%%%%%%%%%%%%%%%%%%%%%%%%%%#%%
+     =*+......:*####*#=======++======                              %###%###%#**%###%###%%#%%%%#%
+     ===-.....:*#####*========+======                              %%%###%#%%==%####%#%%#%##%%%#
+    :====-...:#######*========+======.                             #%%%%#%%%%%%####%##%####%%%#%
+    :=========================+======-                             ##%#%#%##%=-%%%%####%%%#%####
+     ========:================++======                             %%%%%##%%%##%%%###%%%%%%%%%%#
+      :-==-:  ================++======                             ##%%%%#%%%#%%###%%%%%#%%%%%%#
+              ================*+======                             %%%%######*-*%%#%%#%%%%%%%%##.
+              ================++======                             ##%%%%%%%####%###%#########%#.
+              ================+*======                             *%#%%%%%%%%%%%%%%%#%%####%%%%.
+              ================++=====-                             *%%%%%%%%##%%#%%%%%%%%%%%%%%%
+'''
+STYLE_SHEET = f"\n/* ===== グローバルスタイル ===== */\nQMainWindow, QWidget {{\n    background-color: {COLORS['bg_dark']};\n    color: {COLORS['text_primary']};\n    font-family: 'Segoe UI', 'Meiryo UI', 'Yu Gothic UI', sans-serif;\n    font-size: 13px;\n}}\n\n/* ===== サイドバー ===== */\n#sidebar {{\n    background-color: {COLORS['bg_panel']};\n    border-right: 1px solid {COLORS['border']};\n}}\n\n/* ===== カード ===== */\n#card {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n}}\n\n#scan_banner {{\n    background-color: {COLORS['bg_dark']};\n    color: {COLORS['accent_cyan']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    padding: 8px;\n    font-family: 'Consolas', 'Cascadia Code', 'Meiryo UI', monospace;\n    font-size: 9px;\n    line-height: 1.0;\n}}\n\n/* ===== グループボックス ===== */\nQGroupBox {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    margin-top: 12px;\n    padding: 12px 8px 8px 8px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\nQGroupBox::title {{\n    subcontrol-origin: margin;\n    left: 12px;\n    padding: 0 6px;\n}}\n\n/* ===== 入力フィールド ===== */\nQLineEdit, QSpinBox {{\n    background-color: {COLORS['bg_input']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 6px;\n    padding: 7px 10px;\n    color: {COLORS['text_primary']};\n    font-size: 13px;\n}}\nQLineEdit:focus, QSpinBox:focus {{\n    border: 1px solid {COLORS['accent_cyan']};\n}}\n\n/* ===== ボタン共通 ===== */\nQPushButton {{\n    border-radius: 6px;\n    padding: 9px 18px;\n    font-weight: bold;\n    font-size: 13px;\n    border: none;\n}}\nQPushButton:disabled {{\n    opacity: 0.4;\n    background-color: {COLORS['text_dim']};\n    color: {COLORS['bg_dark']};\n}}\n\n/* ===== 開始ボタン ===== */\n#btn_start {{\n    background-color: {COLORS['accent_cyan']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_start:hover {{\n    background-color: #33ddff;\n}}\n#btn_start:pressed {{\n    background-color: #0099cc;\n}}\n\n/* ===== 停止ボタン ===== */\n#btn_stop {{\n    background-color: {COLORS['accent_red']};\n    color: white;\n}}\n#btn_stop:hover {{\n    background-color: #ff6b7a;\n}}\n#btn_stop:pressed {{\n    background-color: #cc2233;\n}}\n\n/* ===== 保存ボタン ===== */\n#btn_save {{\n    background-color: {COLORS['accent_green']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_save:hover {{\n    background-color: #33ffaa;\n}}\n\n/* ===== セカンダリボタン ===== */\n#btn_secondary {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['text_primary']};\n    border: 1px solid {COLORS['border']};\n}}\n#btn_secondary:hover {{\n    border-color: {COLORS['accent_cyan']};\n    color: {COLORS['accent_cyan']};\n}}\n\n/* ===== テキストエリア（ログ） ===== */\nQTextEdit#log_view {{\n    background-color: #050810;\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;\n    font-size: 12px;\n    color: {COLORS['accent_green']};\n    padding: 8px;\n}}\n\n/* ===== タブ ===== */\nQTabWidget::pane {{\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    background-color: {COLORS['bg_panel']};\n}}\nQTabBar::tab {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['text_secondary']};\n    padding: 8px 20px;\n    border: none;\n    border-radius: 6px 6px 0 0;\n    margin-right: 2px;\n    font-weight: bold;\n}}\nQTabBar::tab:selected {{\n    background-color: {COLORS['bg_panel']};\n    color: {COLORS['accent_cyan']};\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n}}\nQTabBar::tab:hover:!selected {{\n    color: {COLORS['text_primary']};\n    background-color: {COLORS['bg_input']};\n}}\n\n/* ===== テーブル ===== */\nQTableWidget {{\n    background-color: {COLORS['bg_panel']};\n    border: none;\n    gridline-color: {COLORS['border']};\n    color: {COLORS['text_primary']};\n    selection-background-color: {COLORS['bg_input']};\n}}\nQTableWidget::item {{\n    padding: 8px;\n    border-bottom: 1px solid {COLORS['border']};\n}}\nQTableWidget::item:selected {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['accent_cyan']};\n}}\nQHeaderView::section {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['accent_cyan']};\n    padding: 8px 12px;\n    border: none;\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n    font-weight: bold;\n    font-size: 12px;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n}}\n\n/* ===== スクロールバー ===== */\nQScrollBar:vertical {{\n    background-color: {COLORS['bg_dark']};\n    width: 8px;\n    border-radius: 4px;\n}}\nQScrollBar::handle:vertical {{\n    background-color: {COLORS['border']};\n    border-radius: 4px;\n    min-height: 30px;\n}}\nQScrollBar::handle:vertical:hover {{\n    background-color: {COLORS['accent_cyan']};\n}}\nQScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{\n    height: 0px;\n}}\n\n/* ===== ステータスバー ===== */\nQStatusBar {{\n    background-color: {COLORS['bg_panel']};\n    border-top: 1px solid {COLORS['border']};\n    color: {COLORS['text_secondary']};\n    font-size: 12px;\n}}\n\n/* ===== プログレスバー ===== */\nQProgressBar {{\n    background-color: {COLORS['bg_input']};\n    border: none;\n    border-radius: 4px;\n    height: 6px;\n    text-align: center;\n}}\nQProgressBar::chunk {{\n    background-color: {COLORS['accent_cyan']};\n    border-radius: 4px;\n}}\n\n/* ===== チェックボックス ===== */\nQCheckBox {{\n    color: {COLORS['text_secondary']};\n    spacing: 8px;\n}}\nQCheckBox::indicator {{\n    width: 16px;\n    height: 16px;\n    border: 1px solid {COLORS['border']};\n    border-radius: 3px;\n    background-color: {COLORS['bg_input']};\n}}\nQCheckBox::indicator:checked {{\n    background-color: {COLORS['accent_cyan']};\n    border-color: {COLORS['accent_cyan']};\n}}\n\n/* ===== ラベル ===== */\n#label_title {{\n    font-size: 18px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n    letter-spacing: 2px;\n}}\n#label_subtitle {{\n    font-size: 11px;\n    color: {COLORS['text_dim']};\n    letter-spacing: 1px;\n}}\n#stat_value {{\n    font-size: 28px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\n#stat_label {{\n    font-size: 11px;\n    color: {COLORS['text_secondary']};\n    letter-spacing: 1px;\n}}\n#status_dot_active {{\n    color: {COLORS['accent_green']};\n    font-size: 20px;\n}}\n#status_dot_inactive {{\n    color: {COLORS['text_dim']};\n    font-size: 20px;\n}}\n#status_dot_warning {{\n    color: {COLORS['accent_orange']};\n    font-size: 20px;\n}}\n"
 
 class StatCard(QFrame):
 
@@ -240,6 +287,14 @@ class MainWindow(QMainWindow):
         for card in [self._stat_processed, self._stat_detected, self._stat_scanned, self._stat_scams]:
             stats_row.addWidget(card)
         layout.addLayout(stats_row)
+        self._scan_banner = QLabel(SCANNING_BANNER)
+        self._scan_banner.setObjectName('scan_banner')
+        self._scan_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._scan_banner.setVisible(False)
+        self._scan_banner.setTextFormat(Qt.TextFormat.PlainText)
+        self._scan_banner.setWordWrap(False)
+        self._scan_banner.setMinimumHeight(260)
+        layout.addWidget(self._scan_banner)
         tabs = QTabWidget()
         log_tab = QWidget()
         log_layout = QVBoxLayout(log_tab)
@@ -351,10 +406,11 @@ class MainWindow(QMainWindow):
     def _start_pipeline(self) -> None:
         if not self._validate_inputs():
             return
-        
+
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
 
+        self._scan_banner.setVisible(True)
         self._log_view.clear()
         self._log_view.append_log('INFO', '=' * 60)
         self._log_view.append_log('INFO', '🛡️  詐欺サイト検知システム 起動')
@@ -376,6 +432,7 @@ class MainWindow(QMainWindow):
         if self._worker:
             self._worker.request_stop()
             self._log_view.append_log('WARNING', '⏹️  停止リクエストを送信しました...')
+        self._scan_banner.setVisible(False)
         self._btn_stop.setEnabled(False)
 
     @pyqtSlot(dict)
@@ -418,6 +475,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_finished(self, saved_path: str) -> None:
+        self._scan_banner.setVisible(False)
         self._btn_start.setEnabled(True)
         self._btn_stop.setEnabled(False)
         self._progress.setRange(0, 100)
@@ -433,6 +491,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_error(self, message: str) -> None:
+        self._scan_banner.setVisible(False)
         self._log_view.append_log('ERROR', f'❌ {message}')
         self._btn_start.setEnabled(True)
         self._btn_stop.setEnabled(False)
