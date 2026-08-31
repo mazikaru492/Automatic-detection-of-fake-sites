@@ -30,10 +30,10 @@ SCANNING_BANNER = '''
   .%%-...............:#%%%%%%%@@@@%%%%#              ................::::.:::::**-:::::
    %%...................:=%%%%@@@@%%%%%     +%*=*@@@@@@@@*==+%@@@@#=.:::..::::::::::::::
    ##....:+++++......+++++..::#@@@%%%%%    @=.. .==@@@@+....-==@@##.........-:::::::::::.
-    -....................:.......:=%%%%   =+....====@@@:...====*@%...........::::::::::.
-    .:::.......................:::-=::-   :*..-=====@@@=.-=====#@@@%.........:::::::.
-    .:::...%#.........-@-...::::::::::::.  **======@@@@@+=====#@@@@+:........-:::::
-    :::::..%@@-.......-@@*.::::::::::::::    -%@@@@@@@%#*#@@@@@@#*:.:........-...::
+   -....................:.......:=%%%%   =+....====@@@:...====*@%...........::::::::::.
+   .:::.......................:::-=::-   :*..-=====@@@=.-=====#@@@%.........:::::::.
+   .:::...%#.........-@-...::::::::::::.  **======@@@@@+=====#@@@@+:........-:::::
+   :::::..%@@-.......-@@*.::::::::::::::    -%@@@@@@@%#*#@@@@@@#*:.:........-...::
     .:::::.................::::::::::::..       ........ ...........::.-%%@%#%%..=#%%####.
      ::::::..................::::::=--+         ..:-=*#%*  .....==***:%%#%%%%#%%.%%#%%#####%
       :::.:......:............:.::@@%%%         ######%##     ........%##%%#%%#%%%%%#%%%%%%%%+
@@ -93,28 +93,29 @@ class ApiKeyInput(QWidget):
         lbl = QLabel(label)
         lbl.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
         row = QHBoxLayout()
+        row.setSpacing(8)
         self._input = QLineEdit()
         self._input.setPlaceholderText(placeholder)
         self._input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._toggle_btn = QPushButton('👁')
+        self._toggle_btn = QPushButton('👁 表示')
         self._toggle_btn.setObjectName('btn_secondary')
-        self._toggle_btn.setFixedWidth(40)
-        self._toggle_btn.setFixedHeight(36)
+        self._toggle_btn.setMinimumWidth(92)
+        self._toggle_btn.setFixedHeight(38)
         self._toggle_btn.setToolTip('表示/非表示')
         self._toggle_btn.clicked.connect(self._toggle_visibility)
-        row.addWidget(self._input)
+        row.addWidget(self._input, 1)
         row.addWidget(self._toggle_btn)
         if self._help_url:
-            self._copy_url_btn = QPushButton('📋')
+            self._copy_url_btn = QPushButton('📋 コピー')
             self._copy_url_btn.setObjectName('btn_secondary')
-            self._copy_url_btn.setFixedWidth(40)
-            self._copy_url_btn.setFixedHeight(36)
+            self._copy_url_btn.setMinimumWidth(96)
+            self._copy_url_btn.setFixedHeight(38)
             self._copy_url_btn.setToolTip(f'取得URLをコピー: {self._help_url}')
             self._copy_url_btn.clicked.connect(self._copy_help_url)
-            self._open_url_btn = QPushButton('🔗')
+            self._open_url_btn = QPushButton('🔗 開く')
             self._open_url_btn.setObjectName('btn_secondary')
-            self._open_url_btn.setFixedWidth(40)
-            self._open_url_btn.setFixedHeight(36)
+            self._open_url_btn.setMinimumWidth(92)
+            self._open_url_btn.setFixedHeight(38)
             self._open_url_btn.setToolTip(f'取得URLをブラウザで開く: {self._help_url}')
             self._open_url_btn.clicked.connect(self._open_help_url)
             row.addWidget(self._copy_url_btn)
@@ -125,18 +126,18 @@ class ApiKeyInput(QWidget):
     def _toggle_visibility(self) -> None:
         if self._input.echoMode() == QLineEdit.EchoMode.Password:
             self._input.setEchoMode(QLineEdit.EchoMode.Normal)
-            self._toggle_btn.setText('🙈')
+            self._toggle_btn.setText('🙈 非表示')
         else:
             self._input.setEchoMode(QLineEdit.EchoMode.Password)
-            self._toggle_btn.setText('👁')
+            self._toggle_btn.setText('👁 表示')
 
     def _copy_help_url(self) -> None:
         if not self._help_url:
             return
         clipboard = QApplication.clipboard()
         clipboard.setText(self._help_url)
-        self._copy_url_btn.setText('✓')
-        QTimer.singleShot(1200, lambda: self._copy_url_btn.setText('📋'))
+        self._copy_url_btn.setText('✓ コピー済み')
+        QTimer.singleShot(1200, lambda: self._copy_url_btn.setText('📋 コピー'))
 
     def _open_help_url(self) -> None:
         if not self._help_url:
@@ -187,6 +188,7 @@ class MainWindow(QMainWindow):
         self.resize(1400, 900)
         self.setStyleSheet(STYLE_SHEET)
         self._setup_ui()
+        self._scan_banner.hide()
         self._load_env()
         self._update_status('待機中', 'inactive')
 
@@ -197,9 +199,16 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
         sidebar = self._build_sidebar()
-        root.addWidget(sidebar)
         main_area = self._build_main_area()
-        root.addWidget(main_area, 1)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(sidebar)
+        splitter.addWidget(main_area)
+        splitter.setSizes([320, 980])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(8)
+        root.addWidget(splitter)
         self._statusbar = QStatusBar()
         self.setStatusBar(self._statusbar)
         self._status_dot = QLabel('●')
@@ -218,7 +227,7 @@ class MainWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QWidget()
         sidebar.setObjectName('sidebar')
-        sidebar.setFixedWidth(320)
+        sidebar.setMinimumWidth(220)
         layout = QVBoxLayout(sidebar)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(16)
@@ -259,18 +268,22 @@ class MainWindow(QMainWindow):
         self._max_scan_spin.setRange(1, 5000)
         self._max_scan_spin.setValue(50)
         self._max_scan_spin.setSuffix(' 件')
+        self._max_scan_spin.setToolTip('1件以上のスキャン数を設定します')
         scan_layout.addWidget(self._max_scan_spin, 0, 1)
         scan_layout.addWidget(QLabel('Excelテンプレート:'), 1, 0)
         excel_row = QHBoxLayout()
+        excel_row.setSpacing(6)
         self._excel_path_input = QLineEdit()
         self._excel_path_input.setPlaceholderText('テンプレート.xls')
-        browse_btn = QPushButton('📂')
+        self._excel_path_input.setToolTip('Excelテンプレートファイルの保存先')
+        browse_btn = QPushButton('📂 テンプレートを選択')
         browse_btn.setObjectName('btn_secondary')
-        browse_btn.setFixedWidth(40)
+        browse_btn.setMinimumWidth(150)
+        browse_btn.setFixedHeight(38)
+        browse_btn.setToolTip('Excelテンプレートファイルを選択します')
         browse_btn.clicked.connect(self._browse_excel)
-        excel_row.addWidget(self._excel_path_input)
+        excel_row.addWidget(self._excel_path_input, 1)
         excel_row.addWidget(browse_btn)
-        excel_row.setSpacing(4)
         scan_layout.addLayout(excel_row, 1, 1)
         layout.addWidget(scan_group)
         self._btn_start = QPushButton('▶  監視開始')
@@ -440,7 +453,8 @@ class MainWindow(QMainWindow):
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
 
-        self._scan_banner.setVisible(True)
+        self._scan_banner.show()
+        self._scan_banner.raise_()
         self._log_view.clear()
         self._log_view.append_log('INFO', '=' * 60)
         self._log_view.append_log('INFO', '🛡️  詐欺サイト検知システム 起動')
