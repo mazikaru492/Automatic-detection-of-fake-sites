@@ -106,13 +106,13 @@ class ApiKeyInput(QWidget):
         row.addWidget(self._input, 1)
         row.addWidget(self._toggle_btn)
         if self._help_url:
-            self._copy_url_btn = QPushButton('📋 コピー')
+            self._copy_url_btn = QPushButton('コピー')
             self._copy_url_btn.setObjectName('btn_secondary')
             self._copy_url_btn.setMinimumWidth(96)
             self._copy_url_btn.setFixedHeight(38)
             self._copy_url_btn.setToolTip(f'取得URLをコピー: {self._help_url}')
             self._copy_url_btn.clicked.connect(self._copy_help_url)
-            self._open_url_btn = QPushButton('🔗 開く')
+            self._open_url_btn = QPushButton('開く')
             self._open_url_btn.setObjectName('btn_secondary')
             self._open_url_btn.setMinimumWidth(92)
             self._open_url_btn.setFixedHeight(38)
@@ -126,18 +126,18 @@ class ApiKeyInput(QWidget):
     def _toggle_visibility(self) -> None:
         if self._input.echoMode() == QLineEdit.EchoMode.Password:
             self._input.setEchoMode(QLineEdit.EchoMode.Normal)
-            self._toggle_btn.setText('🙈 非表示')
+            self._toggle_btn.setText('非表示')
         else:
             self._input.setEchoMode(QLineEdit.EchoMode.Password)
-            self._toggle_btn.setText('👁 表示')
+            self._toggle_btn.setText('表示')
 
     def _copy_help_url(self) -> None:
         if not self._help_url:
             return
         clipboard = QApplication.clipboard()
         clipboard.setText(self._help_url)
-        self._copy_url_btn.setText('✓ コピー済み')
-        QTimer.singleShot(1200, lambda: self._copy_url_btn.setText('📋 コピー'))
+        self._copy_url_btn.setText('コピー済み')
+        QTimer.singleShot(1200, lambda: self._copy_url_btn.setText('コピー'))
 
     def _open_help_url(self) -> None:
         if not self._help_url:
@@ -183,7 +183,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._worker: PipelineWorker | None = None
         self._scam_records: list[dict] = []
-        self.setWindowTitle('🛡️ 詐欺サイト自動検知システム — CYCOT サイバーパトロール')
+        self.setWindowTitle('詐欺サイト自動検知システム — CYCOT サイバーパトロール')
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
         self.setStyleSheet(STYLE_SHEET)
@@ -455,13 +455,15 @@ class MainWindow(QMainWindow):
 
         self._scan_banner.show()
         self._scan_banner.raise_()
+        self._scan_banner.setVisible(True)
+        self._tabs.setCurrentIndex(0)
         self._log_view.clear()
         self._log_view.append_log('INFO', '=' * 60)
         self._log_view.append_log('INFO', '🛡️  詐欺サイト検知システム 起動')
         self._log_view.append_log('INFO', '=' * 60)
         self._worker = PipelineWorker(urlscan_api_key=self._urlscan_input.value, gemini_api_key=self._gemini_input.value, excel_template_path=self._excel_path_input.text(), max_scan_count=self._max_scan_spin.value())
 
-        self._worker.log_emitted.connect(self._log_view.append_log)
+        self._worker.log_emitted.connect(self._on_worker_log)
         self._worker.scam_detected.connect(self._on_scam_detected)
         self._worker.stats_updated.connect(self._on_stats_updated)
         self._worker.finished_with_result.connect(self._on_finished)
@@ -471,6 +473,14 @@ class MainWindow(QMainWindow):
         self._btn_stop.setEnabled(True)
         self._progress.setRange(0, 0)
         self._update_status('監視中', 'active')
+
+    @pyqtSlot(str, str)
+    def _on_worker_log(self, level: str, message: str) -> None:
+        self._log_view.append_log(level, message)
+        if self._scan_banner.isVisible():
+            self._scan_banner.setVisible(False)
+            self._tabs.setCurrentIndex(0)
+            self._log_view.setFocus()
 
     def _stop_pipeline(self) -> None:
         if self._worker:
