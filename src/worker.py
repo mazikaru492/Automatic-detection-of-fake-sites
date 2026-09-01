@@ -29,13 +29,14 @@ class PipelineWorker(QThread):
     finished_with_result = pyqtSignal(str)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, urlscan_api_key: str, gemini_api_key: str, excel_template_path: str, max_scan_count: int, reporter_name: str = '', parent=None):
+    def __init__(self, urlscan_api_key: str, gemini_api_key: str, excel_template_path: str, max_scan_count: int, reporter_name: str = '', report_output_dir: str = '検出結果', parent=None):
         super().__init__(parent)
         self._urlscan_api_key = urlscan_api_key
         self._gemini_api_key = gemini_api_key
         self._excel_template_path = excel_template_path
         self._max_scan_count = max_scan_count
         self._reporter_name = reporter_name
+        self._report_output_dir = report_output_dir
         self._stop_requested = False
 
     def request_stop(self) -> None:
@@ -69,7 +70,11 @@ class PipelineWorker(QThread):
         analyzer.set_status_callback(
             lambda status: self.stats_updated.emit({'gemini': status})
         )
-        reporter = ExcelReporter(self._excel_template_path, self._reporter_name)
+        reporter = ExcelReporter(
+            self._excel_template_path,
+            self._reporter_name,
+            self._report_output_dir,
+        )
         scan_count = 0
         scam_count = 0
         self.log_emitted.emit('INFO', '🔍 certstream 監視を開始します...')

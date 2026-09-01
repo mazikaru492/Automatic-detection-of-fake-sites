@@ -33,7 +33,8 @@ def load_config() -> dict:
     config = {
         'urlscan_api_key': urlscan_key,
         'gemini_api_key': gemini_key,
-        'excel_template_path': os.getenv('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'),
+        'excel_template_path': os.getenv('EXCEL_TEMPLATE_PATH', 'テンプレート/CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'),
+        'report_output_dir': os.getenv('REPORT_OUTPUT_DIR', '検出結果'),
         'reporter_name': os.getenv('REPORTER_NAME', ''),
         'max_scan_count': int(os.getenv('MAX_SCAN_COUNT', '50')),
         'queue_size': int(os.getenv('QUEUE_SIZE', '500'))
@@ -57,7 +58,11 @@ class Pipeline:
         self._monitor: DomainMonitor = DomainMonitor(self._domain_queue)
         self._scanner: UrlScanner = UrlScanner(config['urlscan_api_key'])
         self._analyzer: ScamAnalyzer = ScamAnalyzer(config['gemini_api_key'])
-        self._reporter: ExcelReporter = ExcelReporter(config['excel_template_path'], config.get('reporter_name', ''))
+        self._reporter: ExcelReporter = ExcelReporter(
+            config['excel_template_path'],
+            config.get('reporter_name', ''),
+            config.get('report_output_dir', '検出結果'),
+        )
         self._running = True
         self._scan_count = 0
         self._scam_count = 0

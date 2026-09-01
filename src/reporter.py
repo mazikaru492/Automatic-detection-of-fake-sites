@@ -16,8 +16,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 class ExcelReporter:
 
-    def __init__(self, excel_path: str, reporter_name: str = ''):
+    def __init__(self, excel_path: str, reporter_name: str = '', output_dir: str = ''):
         self._excel_path = self._resolve_excel_path(excel_path)
+        self._output_dir = self._resolve_output_dir(output_dir)
         self._reporter_name = reporter_name.strip()
         self._workbook: Optional[openpyxl.Workbook] = None
         self._sheet = None
@@ -47,6 +48,14 @@ class ExcelReporter:
             if candidate.exists():
                 return candidate.resolve()
         return (PROJECT_ROOT / path).resolve()
+
+    @staticmethod
+    def _resolve_output_dir(output_dir: str) -> Optional[Path]:
+        """Resolve a report directory without coupling it to the template."""
+        if not output_dir:
+            return None
+        path = Path(output_dir).expanduser()
+        return path.resolve() if path.is_absolute() else (PROJECT_ROOT / path).resolve()
 
     def _load_workbook(self) -> None:
         if not self._excel_path.exists():
@@ -335,7 +344,10 @@ class ExcelReporter:
     def save(self) -> str:
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_path = self._output_path.with_stem(f'{self._output_path.stem}_{timestamp}')
+            output_dir = self._output_dir or self._output_path.parent
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_name = f'{self._output_path.stem}_{timestamp}{self._output_path.suffix}'
+            output_path = output_dir / output_name
             self._workbook.save(str(output_path))
             logger.info(f'✅ Excel レポートを保存しました: {output_path} ({self._appended_count} 件追記)')
             return str(output_path)

@@ -387,6 +387,23 @@ class MainWindow(QMainWindow):
         excel_row.addWidget(self._excel_path_input, 1)
         excel_row.addWidget(browse_btn)
         scan_layout.addLayout(excel_row, 2, 1)
+        output_label = QLabel('検出結果の保存先:')
+        output_label.setObjectName('field_label')
+        scan_layout.addWidget(output_label, 3, 0)
+        output_row = QHBoxLayout()
+        output_row.setSpacing(6)
+        self._report_output_input = QLineEdit()
+        self._report_output_input.setPlaceholderText('検出結果')
+        self._report_output_input.setFixedHeight(38)
+        self._report_output_input.setToolTip('検出後のExcelレポートを保存するフォルダー')
+        output_browse_btn = QPushButton('📁 保存先を選択')
+        output_browse_btn.setObjectName('btn_secondary')
+        output_browse_btn.setMinimumWidth(150)
+        output_browse_btn.setFixedHeight(38)
+        output_browse_btn.clicked.connect(self._browse_report_output)
+        output_row.addWidget(self._report_output_input, 1)
+        output_row.addWidget(output_browse_btn)
+        scan_layout.addLayout(output_row, 3, 1)
         layout.addWidget(scan_group)
         self._btn_start = QPushButton('▶  監視開始')
         self._btn_start.setObjectName('btn_start')
@@ -517,7 +534,8 @@ class MainWindow(QMainWindow):
 
         self._urlscan_input.set_value(urlscan_val or env_values.get('URLSCAN_API_KEY', ''))
         self._gemini_input.set_value(gemini_val or env_values.get('GEMINI_API_KEY', ''))
-        self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'))
+        self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', 'テンプレート/CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'))
+        self._report_output_input.setText(env_values.get('REPORT_OUTPUT_DIR', '検出結果'))
         self._reporter_name_input.setText(env_values.get('REPORTER_NAME', ''))
         max_scan = env_values.get('MAX_SCAN_COUNT', '50')
         try:
@@ -535,7 +553,7 @@ class MainWindow(QMainWindow):
             save_api_key(GEMINI_KEY_NAME, g_key)
 
         env_path = Path(__file__).parent.parent / '.env'
-        content = f'URLSCAN_API_KEY={u_key}\nGEMINI_API_KEY={g_key}\nREPORTER_NAME={self._reporter_name_input.text().strip()}\nEXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\nMAX_SCAN_COUNT={self._max_scan_spin.value()}\nQUEUE_SIZE=500\n'
+        content = f'URLSCAN_API_KEY={u_key}\nGEMINI_API_KEY={g_key}\nREPORTER_NAME={self._reporter_name_input.text().strip()}\nEXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\nREPORT_OUTPUT_DIR={self._report_output_input.text().strip()}\nMAX_SCAN_COUNT={self._max_scan_spin.value()}\nQUEUE_SIZE=500\n'
         try:
             with open(env_path, 'w', encoding='utf-8') as f:
                 f.write(content)
@@ -549,6 +567,13 @@ class MainWindow(QMainWindow):
         if path:
             self._excel_path_input.setText(path)
 
+    def _browse_report_output(self) -> None:
+        current = self._report_output_input.text().strip()
+        initial = current if current and Path(current).is_absolute() else str(Path.home())
+        path = QFileDialog.getExistingDirectory(self, '検出結果の保存先を選択', initial)
+        if path:
+            self._report_output_input.setText(path)
+
     def _validate_inputs(self) -> bool:
         if not self._reporter_name_input.text().strip():
             QMessageBox.warning(self, '入力エラー', 'Excelレポートへ記載する氏名を入力してください。')
@@ -559,6 +584,12 @@ class MainWindow(QMainWindow):
             return False
         if not self._gemini_input.value:
             QMessageBox.warning(self, '入力エラー', 'Gemini APIキーを入力してください。\n\n取得先: https://aistudio.google.com/app/apikey')
+            return False
+        if not self._excel_path_input.text().strip():
+            QMessageBox.warning(self, '入力エラー', 'Excelテンプレートを選択してください。')
+            return False
+        if not self._report_output_input.text().strip():
+            QMessageBox.warning(self, '入力エラー', '検出結果の保存先を選択してください。')
             return False
         return True
 
@@ -579,7 +610,14 @@ class MainWindow(QMainWindow):
         self._log_view.append_log('INFO', '=' * 60)
         self._log_view.append_log('INFO', '🛡️  詐欺サイト検知システム 起動')
         self._log_view.append_log('INFO', '=' * 60)
-        self._worker = PipelineWorker(urlscan_api_key=self._urlscan_input.value, gemini_api_key=self._gemini_input.value, excel_template_path=self._excel_path_input.text(), max_scan_count=self._max_scan_spin.value(), reporter_name=self._reporter_name_input.text().strip())
+        self._worker = PipelineWorker(
+            urlscan_api_key=self._urlscan_input.value,
+            gemini_api_key=self._gemini_input.value,
+            excel_template_path=self._excel_path_input.text(),
+            report_output_dir=self._report_output_input.text().strip(),
+            max_scan_count=self._max_scan_spin.value(),
+            reporter_name=self._reporter_name_input.text().strip(),
+        )
 
         self._worker.log_emitted.connect(self._on_worker_log)
         self._worker.scam_detected.connect(self._on_scam_detected)

@@ -68,6 +68,28 @@ class ExcelReporterTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 ExcelReporter(str(missing))
 
+    def test_report_is_saved_in_separate_output_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template_dir = root / 'templates'
+            output_dir = root / 'detections'
+            template_dir.mkdir()
+            template = self._create_template(str(template_dir))
+            reporter = ExcelReporter(
+                str(template), reporter_name='山田 太郎', output_dir=str(output_dir)
+            )
+            reporter.append_record(
+                url='https://dangerous.example', target_brand='PayPay',
+                features='確認済み証拠', category='フィッシングサイト',
+            )
+
+            saved = Path(reporter.save())
+
+            self.assertEqual(saved.parent, output_dir)
+            self.assertTrue(saved.exists())
+            self.assertTrue(template.exists())
+            self.assertEqual(len(list(template_dir.glob('template_*.xlsx'))), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
