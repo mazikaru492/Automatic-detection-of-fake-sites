@@ -3,10 +3,12 @@ import datetime
 import logging
 import threading
 import queue
+import re
 import time
-from collections import deque
+from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
+from urllib.parse import urlparse
 import requests
 import tldextract
 from cryptography import x509
@@ -17,30 +19,190 @@ CT_REQUEST_TIMEOUT_SEC = 20
 CT_BATCH_SIZE = 1024
 CT_INITIAL_LOOKBACK = 256
 CT_POLL_INTERVAL_SEC = 2
-TARGET_BRANDS: list[str] = ['sagawa', 'aeon', 'kuroneko', 'yamato', 'amazon', 'mercari', 'rakuten', 'yahoo', 'nttdocomo', 'docomo', 'softbank', 'smbc', 'mizuho', 'mitsubishiufj', 'japanpost', 'yuubin', 'paypal', 'line', 'naver', 'zozotown']
+OPENPHISH_FEED_URL = 'https://openphish.com/feed.txt'
+OPENPHISH_REFRESH_SEC = 30 * 60
+DIVERSITY_WINDOW_SEC = 10 * 60
+MAX_CANDIDATES_PER_GROUP = 8
+BRAND_ALIASES: dict[str, tuple[str, ...]] = {
+    '佐川急便': ('sagawa',),
+    'ヤマト運輸': ('yamato', 'kuroneko'),
+    '日本郵便': ('japanpost', 'jppost', 'yuubin', 'yubin'),
+    'Amazon': ('amazon',),
+    '楽天': ('rakuten', 'rakutencard'),
+    'メルカリ': ('mercari',),
+    'Yahoo! JAPAN': ('yahoo',),
+    'NTTドコモ': ('docomo', 'nttdocomo', 'daccount'),
+    'SoftBank': ('softbank',),
+    '三井住友銀行': ('smbc',),
+    'みずほ銀行': ('mizuho',),
+    '三菱UFJ': ('mufg', 'mitsubishiufj'),
+    'ゆうちょ銀行': ('yucho', 'jpbank', 'japanpostbank'),
+    'PayPay': ('paypay',),
+    'PayPal': ('paypal',),
+    'LINE': ('line',),
+    'イオン': ('aeon', 'aeoncard'),
+    'JCB': ('jcb',),
+    'セゾンカード': ('saison', 'saisoncard'),
+    'エポスカード': ('epos', 'eposcard'),
+    'オリコ': ('orico',),
+    'dカード': ('dcard',),
+    'SBI証券': ('sbisec',),
+    '野村證券': ('nomura',),
+    '大和証券': ('daiwa',),
+    'マネックス証券': ('monex',),
+    '松井証券': ('matsui',),
+}
+PHISHING_KEYWORDS: set[str] = {
+    'account', 'auth', 'card', 'confirm', 'id', 'login', 'member', 'official',
+    'payment', 'secure', 'security', 'service', 'signin', 'support', 'update',
+    'verify', 'wallet', 'japan', 'jp',
+}
+COMMERCE_KEYWORDS: set[str] = {
+    'buy', 'deal', 'deals', 'mall', 'market', 'outlet', 'sale', 'shop',
+    'store', 'wholesale',
+}
+SCAM_SHOP_KEYWORDS: set[str] = {
+    'bargain', 'clearance', 'closing', 'discount', 'limited', 'liquidation',
+    'officialsale', 'stockout', 'warehouse',
+}
+COUNTERFEIT_KEYWORDS: set[str] = {
+    'clone', 'copybrand', 'counterfeit', 'fakebrand', 'mirrorcopy', 'replica',
+    'superclone', 'supercopy',
+}
+ILLICIT_GOODS_KEYWORDS: set[str] = {
+    'anabolic', 'cannabis', 'cocaine', 'designerdrug', 'fentanyl', 'marijuana',
+    'mdma', 'researchchemical', 'steroid', 'thc',
+}
 SUSPICIOUS_TLDS: list[str] = ['.top', '.xyz', '.shop', '.club', '.vip', '.cn', '.buzz', '.icu', '.fit', '.surf', '.space', '.gdn', '.win', '.loan', '.date', '.accountant']
-SAFE_DOMAINS: set[str] = {'amazon.co.jp', 'amazon.com', 'mercari.com', 'aeon.co.jp', 'rakuten.co.jp', 'yahoo.co.jp', 'docomo.ne.jp', 'softbank.jp', 'smbc.co.jp', 'mizuhobank.co.jp'}
+SAFE_DOMAINS: set[str] = {
+    'aeon.co.jp', 'aeonbank.co.jp', 'amazon.co.jp', 'amazon.com',
+    'd-card.jp', 'docomo.ne.jp', 'eposcard.co.jp', 'jcb.co.jp',
+    'japanpost.jp', 'jp-bank.japanpost.jp', 'kuronekoyamato.co.jp',
+    'line.biz', 'line.me', 'linecorp.com', 'matsui.co.jp', 'mercari.com',
+    'mizuhobank.co.jp', 'monex.co.jp', 'mufg.jp', 'nomura.co.jp',
+    'orico.co.jp', 'paypay.ne.jp', 'paypay-card.co.jp', 'paypay-bank.co.jp',
+    'rakuten.co.jp', 'sagawa-exp.co.jp', 'paypal.com', 'paypal.jp',
+    'paypalobjects.com',
+    'saisoncard.co.jp', 'sbisec.co.jp', 'smbc.co.jp', 'softbank.jp',
+    'yahoo.co.jp',
+}
 TLD_EXTRACT = tldextract.TLDExtract(suffix_list_urls=())
 
-def is_suspicious(domain: str) -> tuple[bool, str]:
+def _edit_distance_at_most_one(left: str, right: str) -> bool:
+    if abs(len(left) - len(right)) > 1:
+        return False
+    if len(left) > len(right):
+        left, right = right, left
+    if len(left) == len(right):
+        return sum(a != b for a, b in zip(left, right)) == 1
+    index_left = index_right = differences = 0
+    while index_left < len(left) and index_right < len(right):
+        if left[index_left] == right[index_right]:
+            index_left += 1
+        else:
+            differences += 1
+            if differences > 1:
+                return False
+        index_right += 1
+    return True
+
+def classify_domain_candidate(domain: str) -> tuple[int, str, str, str]:
     if not domain:
-        return (False, '')
-    domain_lower = domain.lower()
+        return (0, '', '', '')
+    domain_lower = domain.lower().removeprefix('*.').rstrip('.')
     ext = TLD_EXTRACT(domain_lower)
     registered_domain = ext.registered_domain
     if registered_domain in SAFE_DOMAINS:
-        return (False, '')
-    matched_brand: Optional[str] = None
-    for brand in TARGET_BRANDS:
-        if brand in domain_lower:
-            matched_brand = brand
-            break
+        return (0, '', '', '')
+    labels = [part for part in re.split(r'[.\-_]+', domain_lower) if part]
+    compact_labels = [part.replace('-', '') for part in domain_lower.split('.')]
+    matched_brand = ''
+    matched_alias = ''
+    brand_score = 0
+    for brand, aliases in BRAND_ALIASES.items():
+        for alias in aliases:
+            if alias in labels:
+                score = 5
+            elif len(alias) >= 5 and any(
+                label.startswith(alias) and len(label) <= len(alias) + 12
+                for label in compact_labels
+            ):
+                score = 4
+            elif len(alias) >= 5 and any(
+                len(label) == len(alias) and
+                _edit_distance_at_most_one(label, alias) for label in labels
+            ):
+                score = 4
+            else:
+                continue
+            if score > brand_score:
+                matched_brand, matched_alias, brand_score = brand, alias, score
+    signals: list[str] = []
+    candidate_kind = ''
+    if matched_brand:
+        score = brand_score
+        candidate_kind = 'brand_impersonation'
+        signals.append(f'brand={matched_brand}({matched_alias})')
+    else:
+        def keyword_matches(keywords: set[str]) -> list[str]:
+            return sorted({
+                keyword for keyword in keywords
+                if keyword in labels or (
+                    len(keyword) >= 5 and any(keyword in label for label in compact_labels)
+                )
+            })
+
+        commerce_matches = keyword_matches(COMMERCE_KEYWORDS)
+        counterfeit_matches = keyword_matches(COUNTERFEIT_KEYWORDS)
+        illicit_matches = keyword_matches(ILLICIT_GOODS_KEYWORDS)
+        scam_shop_matches = keyword_matches(SCAM_SHOP_KEYWORDS)
+        score = 0
+        if counterfeit_matches:
+            score += 5
+            candidate_kind = 'counterfeit_goods'
+            signals.append(f"模倣品語={','.join(counterfeit_matches[:3])}")
+        elif illicit_matches:
+            score += 5
+            candidate_kind = 'suspected_illegal_goods'
+            signals.append(f"規制商品語={','.join(illicit_matches[:3])}")
+        if commerce_matches:
+            score += 2
+            candidate_kind = candidate_kind or 'suspicious_shop'
+            signals.append(f"通販語={','.join(commerce_matches[:3])}")
+        if commerce_matches and scam_shop_matches:
+            score += 2
+            candidate_kind = candidate_kind or 'suspicious_shop'
+            signals.append(f"詐欺販売語={','.join(scam_shop_matches[:3])}")
     has_suspicious_tld = any((domain_lower.endswith(tld) for tld in SUSPICIOUS_TLDS))
-    if matched_brand and has_suspicious_tld:
-        return (True, f"brand='{matched_brand}', suspicious_tld=True")
-    elif matched_brand:
-        return (True, f"brand='{matched_brand}', suspicious_tld=False")
-    return (False, '')
+    if has_suspicious_tld:
+        score += 2
+        signals.append('危険TLD')
+    if matched_brand:
+        keyword_matches = sorted({
+            keyword
+            for keyword in PHISHING_KEYWORDS
+            if keyword in labels or (
+                len(keyword) >= 4 and any(keyword in label for label in compact_labels)
+            )
+        })
+        if keyword_matches:
+            score += 2
+            signals.append(f"誘導語={','.join(keyword_matches[:3])}")
+    if 'xn--' in domain_lower:
+        score += 2
+        signals.append('IDN')
+    if not candidate_kind or score < 1:
+        return (0, '', '', '')
+    reason = f"score={score}; candidate={candidate_kind}; " + '; '.join(signals)
+    return (score, matched_brand, reason, candidate_kind)
+
+def evaluate_domain(domain: str) -> tuple[int, str, str]:
+    score, brand, reason, _ = classify_domain_candidate(domain)
+    return (score, brand, reason)
+
+def is_suspicious(domain: str) -> tuple[bool, str]:
+    score, _, reason = evaluate_domain(domain)
+    return (score >= 5, reason)
 
 class DomainMonitor:
 
@@ -53,6 +215,8 @@ class DomainMonitor:
         self._session = requests.Session()
         self._seen_domains: set[str] = set()
         self._seen_domain_order: deque[str] = deque(maxlen=100000)
+        self._candidate_group_history: deque[tuple[float, str]] = deque()
+        self._candidate_group_counts: Counter[str] = Counter()
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -92,7 +256,11 @@ class DomainMonitor:
             logger.error(f'CTログ一覧の取得に失敗しました: {e}')
             return
 
+        next_feed_refresh = 0.0
         while not self._stop_event.is_set():
+            if time.monotonic() >= next_feed_refresh:
+                self._load_openphish_candidates()
+                next_feed_refresh = time.monotonic() + OPENPHISH_REFRESH_SEC
             received = 0
             for url in log_urls:
                 if self._stop_event.is_set():
@@ -186,24 +354,91 @@ class DomainMonitor:
         self._processed_count += len(domains)
         for raw_domain in domains:
             domain = raw_domain.removeprefix('*.').lower().rstrip('.')
-            if not domain or domain in self._seen_domains:
-                continue
-            if len(self._seen_domain_order) == self._seen_domain_order.maxlen:
-                self._seen_domains.discard(self._seen_domain_order[0])
-            self._seen_domain_order.append(domain)
-            self._seen_domains.add(domain)
-            suspicious, reason = is_suspicious(domain)
-            if suspicious:
-                self._accepted_count += 1
-                if self._queue.full():
-                    try:
-                        self._queue.get_nowait()
-                    except queue.Empty:
-                        pass
-                self._queue.put({
-                    'domain': domain,
-                    'url': f'https://{domain}',
-                    'reason': reason,
-                    'detected_at': time.strftime('%Y-%m-%d %H:%M:%S'),
-                })
-                logger.info(f'🚨 不審ドメイン検出: {domain} (理由: {reason})')
+            score, brand, reason, candidate_kind = classify_domain_candidate(domain)
+            if score >= (5 if brand else 6):
+                self._enqueue_candidate(
+                    domain=domain,
+                    url=f'https://{domain}',
+                    brand=brand,
+                    score=score,
+                    reason=reason,
+                    source='CT',
+                    candidate_kind=candidate_kind,
+                )
+
+    def _load_openphish_candidates(self) -> None:
+        try:
+            response = self._session.get(OPENPHISH_FEED_URL, timeout=CT_REQUEST_TIMEOUT_SEC)
+            response.raise_for_status()
+            added = 0
+            for url in response.text.splitlines():
+                parsed = urlparse(url.strip())
+                domain = (parsed.hostname or '').lower().rstrip('.')
+                score, brand, reason, candidate_kind = classify_domain_candidate(domain)
+                # The feed is global. Generic entries would consume the scan
+                # budget without providing a brand-mismatch verification path.
+                if not brand:
+                    continue
+                if self._enqueue_candidate(
+                    domain=domain,
+                    url=url.strip(),
+                    brand=brand,
+                    score=max(score + 5, 9),
+                    reason=f'OpenPhish登録済み; {reason}',
+                    source='OpenPhish',
+                    known_phishing=True,
+                    candidate_kind=candidate_kind,
+                ):
+                    added += 1
+            logger.info(f'🛡️ OpenPhishから日本ブランド候補を {added} 件追加しました')
+        except requests.exceptions.RequestException as e:
+            logger.warning(f'OpenPhishフィード取得エラー: {e}')
+
+    def _enqueue_candidate(
+        self,
+        domain: str,
+        url: str,
+        brand: str,
+        score: int,
+        reason: str,
+        source: str,
+        known_phishing: bool = False,
+        candidate_kind: str = 'brand_impersonation',
+    ) -> bool:
+        if not domain or domain in self._seen_domains:
+            return False
+        if len(self._seen_domain_order) == self._seen_domain_order.maxlen:
+            self._seen_domains.discard(self._seen_domain_order[0])
+        self._seen_domain_order.append(domain)
+        self._seen_domains.add(domain)
+        group = f'brand:{brand}' if brand else f'kind:{candidate_kind}'
+        now = time.monotonic()
+        while self._candidate_group_history and now - self._candidate_group_history[0][0] >= DIVERSITY_WINDOW_SEC:
+            _, expired_group = self._candidate_group_history.popleft()
+            self._candidate_group_counts[expired_group] -= 1
+            if self._candidate_group_counts[expired_group] <= 0:
+                del self._candidate_group_counts[expired_group]
+        if self._candidate_group_counts[group] >= MAX_CANDIDATES_PER_GROUP:
+            logger.debug(f'候補の偏りを抑制しました: {domain} ({group})')
+            return False
+        self._candidate_group_history.append((now, group))
+        self._candidate_group_counts[group] += 1
+        self._accepted_count += 1
+        if self._queue.full():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                pass
+        self._queue.put({
+            'domain': domain,
+            'url': url,
+            'brand': brand,
+            'score': score,
+            'reason': reason,
+            'source': source,
+            'known_phishing': known_phishing,
+            'candidate_kind': candidate_kind,
+            'detected_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+        logger.info(f'🚨 高信頼候補: {domain} ({reason}; source={source})')
+        return True

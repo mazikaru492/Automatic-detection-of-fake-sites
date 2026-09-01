@@ -11,6 +11,7 @@ from monitor import DomainMonitor
 from scanner import UrlScanner
 from analyzer import ScamAnalyzer
 from reporter import ExcelReporter
+from verification import decide_report
 from key_manager import get_api_key, URLSCAN_KEY_NAME, GEMINI_KEY_NAME
 
 def setup_logging() -> None:
@@ -33,6 +34,7 @@ def load_config() -> dict:
         'urlscan_api_key': urlscan_key,
         'gemini_api_key': gemini_key,
         'excel_template_path': os.getenv('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'),
+        'reporter_name': os.getenv('REPORTER_NAME', ''),
         'max_scan_count': int(os.getenv('MAX_SCAN_COUNT', '50')),
         'queue_size': int(os.getenv('QUEUE_SIZE', '500'))
     }
@@ -55,7 +57,7 @@ class Pipeline:
         self._monitor: DomainMonitor = DomainMonitor(self._domain_queue)
         self._scanner: UrlScanner = UrlScanner(config['urlscan_api_key'])
         self._analyzer: ScamAnalyzer = ScamAnalyzer(config['gemini_api_key'])
-        self._reporter: ExcelReporter = ExcelReporter(config['excel_template_path'])
+        self._reporter: ExcelReporter = ExcelReporter(config['excel_template_path'], config.get('reporter_name', ''))
         self._running = True
         self._scan_count = 0
         self._scam_count = 0
@@ -105,20 +107,30 @@ class Pipeline:
         time.sleep(2)
         self._scan_count += 1
         logger.info(f'  🤖 [2/3] Gemini AI 分析中...')
-        analysis = self._analyzer.analyze(screenshot_url=scan_result['screenshot_url'], dom_text=scan_result['dom_text'])
+        analysis = self._analyzer.analyze(
+            screenshot_url=scan_result['screenshot_url'],
+            dom_text=scan_result['dom_text'],
+            page_url=url,
+            detection_context=(
+                f"{domain_info.get('reason', '')}; "
+                f"candidate_kind={domain_info.get('candidate_kind', '')}; "
+                f"page_signals={scan_result.get('page_signals', {})}"
+            ),
+        )
         if analysis is None:
             logger.warning(f'  ⚠️  AI 分析失敗。このドメインをスキップします: {domain}')
             return
-        verdict = '🚨 詐欺' if analysis.is_scam else '✅ 正常'
+        verdict = f'{analysis.verdict} ({analysis.confidence}%)'
         logger.info(f"  {verdict} — ブランド: {analysis.target_brand or 'N/A'}")
         logger.info(f'  特徴: {analysis.features[:100]}...' if len(analysis.features) > 100 else f'  特徴: {analysis.features}')
-        if analysis.is_scam:
+        decision = decide_report(domain_info, scan_result, analysis)
+        if decision.confirmed:
             logger.info(f'  📝 [3/3] Excel に追記中...')
-            self._reporter.append_record(url=url, target_brand=analysis.target_brand or domain, features=analysis.features, detected_at=detected_at)
+            self._reporter.append_record(url=url, target_brand=analysis.target_brand, features=decision.evidence_summary, detected_at=detected_at, category=decision.report_category)
             self._scam_count += 1
             logger.info(f'  ✅ 追記完了（累計詐欺件数: {self._scam_count}）')
         else:
-            logger.info(f'  ℹ️  [3/3] 詐欺ではないため記録をスキップ')
+            logger.info(f'  ⏭️  [3/3] 報告対象外: {decision.reason}')
 
     def _shutdown(self) -> None:
         self._running = False

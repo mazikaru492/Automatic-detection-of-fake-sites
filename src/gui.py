@@ -1,6 +1,8 @@
 ﻿import os
 import sys
 import csv
+import shutil
+import time
 import webbrowser
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from worker import PipelineWorker
 from key_manager import save_api_key, get_api_key, load_all_keys, URLSCAN_KEY_NAME, GEMINI_KEY_NAME
 COLORS = {'bg_dark': '#0a0e1a', 'bg_panel': '#0f1628', 'bg_card': '#151e35', 'bg_input': '#1a2545', 'accent_cyan': '#00d4ff', 'accent_blue': '#4d9fff', 'accent_green': '#00ff88', 'accent_red': '#ff4757', 'accent_orange': '#ffa502', 'text_primary': '#e8f4f8', 'text_secondary': '#7fa3c0', 'text_dim': '#3d5a78', 'border': '#1e3a5a', 'border_glow': '#00d4ff33'}
+SPIN_UP_ICON = (Path(__file__).parent / 'assets' / 'spin-up.svg').as_posix()
+SPIN_DOWN_ICON = (Path(__file__).parent / 'assets' / 'spin-down.svg').as_posix()
 SCANNING_BANNER = '''
                                                            -=====+==+====-.
                                                      .==#%%%%%##%%%%%%%##%%%#*=-
@@ -60,6 +64,45 @@ SCANNING_BANNER = '''
 '''
 STYLE_SHEET = f"\n/* ===== グローバルスタイル ===== */\nQMainWindow, QWidget {{\n    background-color: {COLORS['bg_dark']};\n    color: {COLORS['text_primary']};\n    font-family: 'Segoe UI', 'Meiryo UI', 'Yu Gothic UI', sans-serif;\n    font-size: 13px;\n}}\n\n/* ===== サイドバー ===== */\n#sidebar {{\n    background-color: {COLORS['bg_panel']};\n    border-right: 1px solid {COLORS['border']};\n}}\n\n/* ===== カード ===== */\n#card {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n}}\n\n#scan_banner {{\n    background-color: {COLORS['bg_dark']};\n    color: {COLORS['accent_cyan']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    padding: 8px;\n    font-family: 'Consolas', 'Cascadia Code', 'Meiryo UI', monospace;\n    font-size: 9px;\n    line-height: 1.0;\n}}\n\n/* ===== グループボックス ===== */\nQGroupBox {{\n    background-color: {COLORS['bg_card']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    margin-top: 12px;\n    padding: 12px 8px 8px 8px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\nQGroupBox::title {{\n    subcontrol-origin: margin;\n    left: 12px;\n    padding: 0 6px;\n}}\n\n/* ===== 入力フィールド ===== */\nQLineEdit, QSpinBox {{\n    background-color: {COLORS['bg_input']};\n    border: 1px solid {COLORS['border']};\n    border-radius: 6px;\n    padding: 7px 10px;\n    color: {COLORS['text_primary']};\n    font-size: 13px;\n}}\nQLineEdit:focus, QSpinBox:focus {{\n    border: 1px solid {COLORS['accent_cyan']};\n}}\n\n/* ===== ボタン共通 ===== */\nQPushButton {{\n    border-radius: 6px;\n    padding: 9px 18px;\n    font-weight: bold;\n    font-size: 13px;\n    border: none;\n}}\nQPushButton:disabled {{\n    opacity: 0.4;\n    background-color: {COLORS['text_dim']};\n    color: {COLORS['bg_dark']};\n}}\n\n/* ===== 開始ボタン ===== */\n#btn_start {{\n    background-color: {COLORS['accent_cyan']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_start:hover {{\n    background-color: #33ddff;\n}}\n#btn_start:pressed {{\n    background-color: #0099cc;\n}}\n\n/* ===== 停止ボタン ===== */\n#btn_stop {{\n    background-color: {COLORS['accent_red']};\n    color: white;\n}}\n#btn_stop:hover {{\n    background-color: #ff6b7a;\n}}\n#btn_stop:pressed {{\n    background-color: #cc2233;\n}}\n\n/* ===== 保存ボタン ===== */\n#btn_save {{\n    background-color: {COLORS['accent_green']};\n    color: {COLORS['bg_dark']};\n}}\n#btn_save:hover {{\n    background-color: #33ffaa;\n}}\n\n/* ===== セカンダリボタン ===== */\n#btn_secondary {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['text_primary']};\n    border: 1px solid {COLORS['border']};\n}}\n#btn_secondary:hover {{\n    border-color: {COLORS['accent_cyan']};\n    color: {COLORS['accent_cyan']};\n}}\n\n/* ===== テキストエリア（ログ） ===== */\nQTextEdit#log_view {{\n    background-color: #050810;\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;\n    font-size: 12px;\n    color: {COLORS['accent_green']};\n    padding: 8px;\n}}\n\n/* ===== タブ ===== */\nQTabWidget::pane {{\n    border: 1px solid {COLORS['border']};\n    border-radius: 8px;\n    background-color: {COLORS['bg_panel']};\n}}\nQTabBar::tab {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['text_secondary']};\n    padding: 8px 20px;\n    border: none;\n    border-radius: 6px 6px 0 0;\n    margin-right: 2px;\n    font-weight: bold;\n}}\nQTabBar::tab:selected {{\n    background-color: {COLORS['bg_panel']};\n    color: {COLORS['accent_cyan']};\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n}}\nQTabBar::tab:hover:!selected {{\n    color: {COLORS['text_primary']};\n    background-color: {COLORS['bg_input']};\n}}\n\n/* ===== テーブル ===== */\nQTableWidget {{\n    background-color: {COLORS['bg_panel']};\n    border: none;\n    gridline-color: {COLORS['border']};\n    color: {COLORS['text_primary']};\n    selection-background-color: {COLORS['bg_input']};\n}}\nQTableWidget::item {{\n    padding: 8px;\n    border-bottom: 1px solid {COLORS['border']};\n}}\nQTableWidget::item:selected {{\n    background-color: {COLORS['bg_input']};\n    color: {COLORS['accent_cyan']};\n}}\nQHeaderView::section {{\n    background-color: {COLORS['bg_card']};\n    color: {COLORS['accent_cyan']};\n    padding: 8px 12px;\n    border: none;\n    border-bottom: 2px solid {COLORS['accent_cyan']};\n    font-weight: bold;\n    font-size: 12px;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n}}\n\n/* ===== スクロールバー ===== */\nQScrollBar:vertical {{\n    background-color: {COLORS['bg_dark']};\n    width: 8px;\n    border-radius: 4px;\n}}\nQScrollBar::handle:vertical {{\n    background-color: {COLORS['border']};\n    border-radius: 4px;\n    min-height: 30px;\n}}\nQScrollBar::handle:vertical:hover {{\n    background-color: {COLORS['accent_cyan']};\n}}\nQScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{\n    height: 0px;\n}}\n\n/* ===== ステータスバー ===== */\nQStatusBar {{\n    background-color: {COLORS['bg_panel']};\n    border-top: 1px solid {COLORS['border']};\n    color: {COLORS['text_secondary']};\n    font-size: 12px;\n}}\n\n/* ===== プログレスバー ===== */\nQProgressBar {{\n    background-color: {COLORS['bg_input']};\n    border: none;\n    border-radius: 4px;\n    height: 6px;\n    text-align: center;\n}}\nQProgressBar::chunk {{\n    background-color: {COLORS['accent_cyan']};\n    border-radius: 4px;\n}}\n\n/* ===== チェックボックス ===== */\nQCheckBox {{\n    color: {COLORS['text_secondary']};\n    spacing: 8px;\n}}\nQCheckBox::indicator {{\n    width: 16px;\n    height: 16px;\n    border: 1px solid {COLORS['border']};\n    border-radius: 3px;\n    background-color: {COLORS['bg_input']};\n}}\nQCheckBox::indicator:checked {{\n    background-color: {COLORS['accent_cyan']};\n    border-color: {COLORS['accent_cyan']};\n}}\n\n/* ===== ラベル ===== */\n#label_title {{\n    font-size: 18px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n    letter-spacing: 2px;\n}}\n#label_subtitle {{\n    font-size: 11px;\n    color: {COLORS['text_dim']};\n    letter-spacing: 1px;\n}}\n#stat_value {{\n    font-size: 28px;\n    font-weight: bold;\n    color: {COLORS['accent_cyan']};\n}}\n#stat_label {{\n    font-size: 11px;\n    color: {COLORS['text_secondary']};\n    letter-spacing: 1px;\n}}\n#status_dot_active {{\n    color: {COLORS['accent_green']};\n    font-size: 20px;\n}}\n#status_dot_inactive {{\n    color: {COLORS['text_dim']};\n    font-size: 20px;\n}}\n#status_dot_warning {{\n    color: {COLORS['accent_orange']};\n    font-size: 20px;\n}}\n"
 
+# Settings-field refinements: keep labels on the card surface and make the
+# numeric stepper use the same dark control treatment as the other inputs.
+STYLE_SHEET += f"""
+QLabel#field_label {{
+    background-color: transparent;
+    color: {COLORS['text_secondary']};
+    font-size: 12px;
+    font-weight: normal;
+}}
+QSpinBox::up-button, QSpinBox::down-button {{
+    subcontrol-origin: border;
+    width: 20px;
+    background-color: {COLORS['bg_card']};
+    border-left: 1px solid {COLORS['border']};
+}}
+QSpinBox::up-button {{
+    subcontrol-position: top right;
+    border-top-right-radius: 5px;
+    border-bottom: 1px solid {COLORS['border']};
+}}
+QSpinBox::down-button {{
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 5px;
+}}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+    background-color: {COLORS['border']};
+}}
+QSpinBox::up-arrow {{
+    image: url("{SPIN_UP_ICON}");
+    width: 10px;
+    height: 7px;
+}}
+QSpinBox::down-arrow {{
+    image: url("{SPIN_DOWN_ICON}");
+    width: 10px;
+    height: 7px;
+}}
+"""
+
 class StatCard(QFrame):
 
     def __init__(self, title: str, value: str='0', color: str=None):
@@ -81,6 +124,44 @@ class StatCard(QFrame):
 
     def set_value(self, value: str) -> None:
         self._value_label.setText(value)
+
+class ApiUsageCard(QFrame):
+
+    def __init__(self, title: str, color: str):
+        super().__init__()
+        self.setObjectName('card')
+        self._color = color
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(4)
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px; font-weight: bold;")
+        self._value_label = QLabel('未取得')
+        self._value_label.setStyleSheet(f'color: {color}; font-size: 18px; font-weight: bold;')
+        self._detail_label = QLabel('開始後に自動更新')
+        self._detail_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 10px;")
+        self._detail_label.setWordWrap(True)
+        self._progress = QProgressBar()
+        self._progress.setRange(0, 100)
+        self._progress.setTextVisible(False)
+        self._progress.setFixedHeight(6)
+        self._progress.hide()
+        layout.addWidget(title_label)
+        layout.addWidget(self._value_label)
+        layout.addWidget(self._detail_label)
+        layout.addWidget(self._progress)
+
+    def set_usage(self, value: str, detail: str, percent: int | None = None,
+                  warning: bool = False) -> None:
+        color = COLORS['accent_orange'] if warning else self._color
+        self._value_label.setText(value)
+        self._value_label.setStyleSheet(f'color: {color}; font-size: 18px; font-weight: bold;')
+        self._detail_label.setText(detail)
+        if percent is None:
+            self._progress.hide()
+        else:
+            self._progress.setValue(max(0, min(100, percent)))
+            self._progress.show()
 
 class ApiKeyInput(QWidget):
 
@@ -183,6 +264,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._worker: PipelineWorker | None = None
         self._scam_records: list[dict] = []
+        self._last_excel_report_path: str = ''
+        self._urlscan_status: dict = {}
+        self._gemini_status: dict = {}
         self.setWindowTitle('詐欺サイト自動検知システム — CYCOT サイバーパトロール')
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
@@ -191,6 +275,9 @@ class MainWindow(QMainWindow):
         self._scan_banner.hide()
         self._load_env()
         self._update_status('待機中', 'inactive')
+        self._api_status_timer = QTimer(self)
+        self._api_status_timer.timeout.connect(self._refresh_api_usage)
+        self._api_status_timer.start(1000)
 
     def _setup_ui(self) -> None:
         central = QWidget()
@@ -203,7 +290,8 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(sidebar)
         splitter.addWidget(main_area)
-        splitter.setSizes([320, 980])
+        # Match the reference layout: sidebar ~38%, main content ~62%.
+        splitter.setSizes([540, 860])
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setChildrenCollapsible(False)
@@ -263,18 +351,32 @@ class MainWindow(QMainWindow):
         scan_group = QGroupBox('⚙️ スキャン設定')
         scan_layout = QGridLayout(scan_group)
         scan_layout.setSpacing(8)
-        scan_layout.addWidget(QLabel('最大スキャン数:'), 0, 0)
+        name_label = QLabel('氏名:')
+        name_label.setObjectName('field_label')
+        scan_layout.addWidget(name_label, 0, 0)
+        self._reporter_name_input = QLineEdit()
+        self._reporter_name_input.setPlaceholderText('報告者の氏名を入力')
+        self._reporter_name_input.setFixedHeight(38)
+        self._reporter_name_input.setToolTip('Excelレポート上部の氏名欄へ記載します')
+        scan_layout.addWidget(self._reporter_name_input, 0, 1)
+        max_scan_label = QLabel('最大スキャン数:')
+        max_scan_label.setObjectName('field_label')
+        scan_layout.addWidget(max_scan_label, 1, 0)
         self._max_scan_spin = QSpinBox()
         self._max_scan_spin.setRange(1, 5000)
         self._max_scan_spin.setValue(50)
         self._max_scan_spin.setSuffix(' 件')
+        self._max_scan_spin.setFixedHeight(38)
         self._max_scan_spin.setToolTip('1件以上のスキャン数を設定します')
-        scan_layout.addWidget(self._max_scan_spin, 0, 1)
-        scan_layout.addWidget(QLabel('Excelテンプレート:'), 1, 0)
+        scan_layout.addWidget(self._max_scan_spin, 1, 1)
+        excel_label = QLabel('Excelテンプレート:')
+        excel_label.setObjectName('field_label')
+        scan_layout.addWidget(excel_label, 2, 0)
         excel_row = QHBoxLayout()
         excel_row.setSpacing(6)
         self._excel_path_input = QLineEdit()
-        self._excel_path_input.setPlaceholderText('テンプレート.xls')
+        self._excel_path_input.setPlaceholderText('テンプレート.xlsx')
+        self._excel_path_input.setFixedHeight(38)
         self._excel_path_input.setToolTip('Excelテンプレートファイルの保存先')
         browse_btn = QPushButton('📂 テンプレートを選択')
         browse_btn.setObjectName('btn_secondary')
@@ -284,7 +386,7 @@ class MainWindow(QMainWindow):
         browse_btn.clicked.connect(self._browse_excel)
         excel_row.addWidget(self._excel_path_input, 1)
         excel_row.addWidget(browse_btn)
-        scan_layout.addLayout(excel_row, 1, 1)
+        scan_layout.addLayout(excel_row, 2, 1)
         layout.addWidget(scan_group)
         self._btn_start = QPushButton('▶  監視開始')
         self._btn_start.setObjectName('btn_start')
@@ -302,7 +404,7 @@ class MainWindow(QMainWindow):
         self._btn_save_report = QPushButton('📊  Excelレポートを保存')
         self._btn_save_report.setObjectName('btn_save')
         self._btn_save_report.setEnabled(False)
-        self._btn_save_report.clicked.connect(self._save_report_csv)
+        self._btn_save_report.clicked.connect(self._save_excel_report)
         layout.addWidget(self._btn_save_report)
         clear_btn = QPushButton('🗑  ログをクリア')
         clear_btn.setObjectName('btn_secondary')
@@ -330,6 +432,15 @@ class MainWindow(QMainWindow):
         for card in [self._stat_processed, self._stat_detected, self._stat_scanned, self._stat_scams]:
             stats_row.addWidget(card)
         layout.addLayout(stats_row)
+        api_row = QHBoxLayout()
+        api_row.setSpacing(12)
+        self._urlscan_usage = ApiUsageCard('URLSCAN.IO API 制限', COLORS['accent_blue'])
+        self._urlscan_usage.setToolTip('urlscan.io が応答ヘッダで返す現在の制限値です')
+        self._gemini_usage = ApiUsageCard('GEMINI API 使用量', COLORS['accent_green'])
+        self._gemini_usage.setToolTip('Geminiの上限はモデルとプロジェクトTierによって異なります')
+        api_row.addWidget(self._urlscan_usage)
+        api_row.addWidget(self._gemini_usage)
+        layout.addLayout(api_row)
         self._scan_banner = QLabel(SCANNING_BANNER)
         self._scan_banner.setObjectName('scan_banner')
         self._scan_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -361,10 +472,10 @@ class MainWindow(QMainWindow):
         table_bar.addStretch()
         table_bar.addWidget(export_csv_btn)
         self._result_table = QTableWidget()
-        self._result_table.setColumnCount(6)
-        self._result_table.setHorizontalHeaderLabels(['検出日時', 'ドメイン', 'ブランド', 'URL', '特徴', 'urlscan レポート'])
+        self._result_table.setColumnCount(7)
+        self._result_table.setHorizontalHeaderLabels(['検出日時', 'ドメイン', 'ブランド', '分類', 'URL', '特徴', 'urlscan レポート'])
         self._result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self._result_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self._result_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self._result_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._result_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._result_table.verticalHeader().setVisible(False)
@@ -407,6 +518,7 @@ class MainWindow(QMainWindow):
         self._urlscan_input.set_value(urlscan_val or env_values.get('URLSCAN_API_KEY', ''))
         self._gemini_input.set_value(gemini_val or env_values.get('GEMINI_API_KEY', ''))
         self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', 'CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'))
+        self._reporter_name_input.setText(env_values.get('REPORTER_NAME', ''))
         max_scan = env_values.get('MAX_SCAN_COUNT', '50')
         try:
             self._max_scan_spin.setValue(int(max_scan))
@@ -423,7 +535,7 @@ class MainWindow(QMainWindow):
             save_api_key(GEMINI_KEY_NAME, g_key)
 
         env_path = Path(__file__).parent.parent / '.env'
-        content = f'URLSCAN_API_KEY={u_key}\nGEMINI_API_KEY={g_key}\nEXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\nMAX_SCAN_COUNT={self._max_scan_spin.value()}\nQUEUE_SIZE=500\n'
+        content = f'URLSCAN_API_KEY={u_key}\nGEMINI_API_KEY={g_key}\nREPORTER_NAME={self._reporter_name_input.text().strip()}\nEXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\nMAX_SCAN_COUNT={self._max_scan_spin.value()}\nQUEUE_SIZE=500\n'
         try:
             with open(env_path, 'w', encoding='utf-8') as f:
                 f.write(content)
@@ -438,6 +550,10 @@ class MainWindow(QMainWindow):
             self._excel_path_input.setText(path)
 
     def _validate_inputs(self) -> bool:
+        if not self._reporter_name_input.text().strip():
+            QMessageBox.warning(self, '入力エラー', 'Excelレポートへ記載する氏名を入力してください。')
+            self._reporter_name_input.setFocus()
+            return False
         if not self._urlscan_input.value:
             QMessageBox.warning(self, '入力エラー', 'urlscan.io APIキーを入力してください。\n\n取得先: https://urlscan.io/user/signup')
             return False
@@ -450,6 +566,8 @@ class MainWindow(QMainWindow):
         if not self._validate_inputs():
             return
 
+        self._last_excel_report_path = ''
+        self._btn_save_report.setEnabled(False)
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
 
@@ -461,7 +579,7 @@ class MainWindow(QMainWindow):
         self._log_view.append_log('INFO', '=' * 60)
         self._log_view.append_log('INFO', '🛡️  詐欺サイト検知システム 起動')
         self._log_view.append_log('INFO', '=' * 60)
-        self._worker = PipelineWorker(urlscan_api_key=self._urlscan_input.value, gemini_api_key=self._gemini_input.value, excel_template_path=self._excel_path_input.text(), max_scan_count=self._max_scan_spin.value())
+        self._worker = PipelineWorker(urlscan_api_key=self._urlscan_input.value, gemini_api_key=self._gemini_input.value, excel_template_path=self._excel_path_input.text(), max_scan_count=self._max_scan_spin.value(), reporter_name=self._reporter_name_input.text().strip())
 
         self._worker.log_emitted.connect(self._on_worker_log)
         self._worker.scam_detected.connect(self._on_scam_detected)
@@ -504,28 +622,93 @@ class MainWindow(QMainWindow):
         self._result_table.setItem(row, 0, make_item(data.get('detected_at', '')))
         self._result_table.setItem(row, 1, make_item(data.get('domain', ''), COLORS['accent_orange']))
         self._result_table.setItem(row, 2, make_item(data.get('target_brand', ''), COLORS['accent_red']))
+        self._result_table.setItem(row, 3, make_item(data.get('category', ''), COLORS['accent_cyan']))
         url_item = make_item(data.get('url', ''), COLORS['text_secondary'])
         url_item.setToolTip('URLはセキュリティのためリンク化されていません')
-        self._result_table.setItem(row, 3, url_item)
-        self._result_table.setItem(row, 4, make_item(data.get('features', '')))
-        self._result_table.setItem(row, 5, make_item(data.get('scan_url', ''), COLORS['accent_blue']))
+        self._result_table.setItem(row, 4, url_item)
+        self._result_table.setItem(row, 5, make_item(data.get('features', '')))
+        self._result_table.setItem(row, 6, make_item(data.get('scan_url', ''), COLORS['accent_blue']))
         count = self._result_table.rowCount()
         self._tabs.setTabText(1, f'🚨  検出一覧 ({count})')
         self._result_count_label.setText(f'{count} 件')
-        self._btn_save_report.setEnabled(True)
         self._tabs.setCurrentIndex(1)
 
     @pyqtSlot(dict)
     def _on_stats_updated(self, stats: dict) -> None:
-        self._stat_processed.set_value(f"{stats.get('processed', 0):,}")
-        self._stat_detected.set_value(f"{stats.get('accepted', 0):,}")
-        self._stat_scanned.set_value(f"{stats.get('scanned', 0):,}")
-        self._stat_scams.set_value(f"{stats.get('scams', 0):,}")
+        if 'processed' in stats:
+            self._stat_processed.set_value(f"{stats['processed']:,}")
+        if 'accepted' in stats:
+            self._stat_detected.set_value(f"{stats['accepted']:,}")
+        if 'scanned' in stats:
+            self._stat_scanned.set_value(f"{stats['scanned']:,}")
+        if 'scams' in stats:
+            self._stat_scams.set_value(f"{stats['scams']:,}")
+        if 'urlscan' in stats:
+            self._urlscan_status = stats['urlscan'] or {}
+        if 'gemini' in stats:
+            self._gemini_status = stats['gemini'] or {}
+        self._refresh_api_usage()
         scanned = stats.get('scanned', 0)
         max_scan = self._max_scan_spin.value()
-        if max_scan > 0:
+        if 'scanned' in stats and max_scan > 0:
             self._progress.setRange(0, max_scan)
             self._progress.setValue(scanned)
+
+    def _refresh_api_usage(self) -> None:
+        now = time.time()
+        urlscan = self._urlscan_status
+        cooldown = max(0, int(float(urlscan.get('cooldown_until') or 0) - now))
+        if cooldown:
+            self._urlscan_usage.set_usage(
+                f'制限待機 {cooldown}秒', 'HTTP 429・リセット待ち', warning=True
+            )
+        elif urlscan:
+            limit = urlscan.get('limit')
+            remaining = urlscan.get('remaining')
+            submissions = int(urlscan.get('successful_submissions') or 0)
+            if isinstance(limit, int) and isinstance(remaining, int) and limit > 0:
+                reset_at = float(urlscan.get('reset_at_epoch') or 0)
+                reset_after = max(0, int(reset_at - now)) if reset_at else None
+                window = {'minute': '1分', 'hour': '1時間', 'day': '1日'}.get(
+                    urlscan.get('window'), urlscan.get('window') or '現在'
+                )
+                action = urlscan.get('action') or 'スキャン送信'
+                if reset_at and reset_after == 0:
+                    self._urlscan_usage.set_usage(
+                        '次回応答で更新',
+                        f'{action}・{window}枠はリセット済み・直前の残数 {remaining:,} / {limit:,}',
+                    )
+                else:
+                    reset_text = f'{reset_after}秒後リセット' if reset_after is not None else 'リセット時刻不明'
+                    percent = round((limit - remaining) / limit * 100)
+                    self._urlscan_usage.set_usage(
+                        f'残り {remaining:,} / {limit:,}',
+                        f'{action}・{window}枠・{reset_text}・成功送信 {submissions:,}件',
+                        percent,
+                        remaining / limit <= 0.1,
+                    )
+            else:
+                self._urlscan_usage.set_usage(
+                    f'成功送信 {submissions:,}件', '制限値は最初のAPI応答後に表示'
+                )
+
+        gemini = self._gemini_status
+        cooldown = max(0, int(float(gemini.get('cooldown_until') or 0) - now))
+        if cooldown:
+            self._gemini_usage.set_usage(
+                f'制限待機 {cooldown}秒',
+                f"{gemini.get('model') or 'Gemini'}・別モデルへリトライ",
+                warning=True,
+            )
+        elif gemini:
+            requests_used = int(gemini.get('requests') or 0)
+            total_tokens = int(gemini.get('total_tokens') or 0)
+            prompt_tokens = int(gemini.get('prompt_tokens') or 0)
+            output_tokens = int(gemini.get('output_tokens') or 0)
+            self._gemini_usage.set_usage(
+                f'{requests_used:,}回 / {total_tokens:,} tokens',
+                f"{gemini.get('model') or 'Gemini'}・入力 {prompt_tokens:,}・出力 {output_tokens:,}・上限はAI Studio",
+            )
 
     @pyqtSlot(str)
     def _on_finished(self, saved_path: str) -> None:
@@ -536,6 +719,8 @@ class MainWindow(QMainWindow):
         self._progress.setValue(100)
         self._update_status('完了', 'inactive')
         if saved_path:
+            self._last_excel_report_path = saved_path
+            self._btn_save_report.setEnabled(True)
             msg = f'✅ 完了！Excelレポートを保存しました:\n{saved_path}'
             self._log_view.append_log('INFO', msg)
             QMessageBox.information(self, '検知完了', f'処理が完了しました。\n\n📄 Excel保存先:\n{saved_path}')
@@ -558,8 +743,22 @@ class MainWindow(QMainWindow):
     def _clear_log(self) -> None:
         self._log_view.clear()
 
-    def _save_report_csv(self) -> None:
-        self._export_csv()
+    def _save_excel_report(self) -> None:
+        if not self._last_excel_report_path or not Path(self._last_excel_report_path).exists():
+            QMessageBox.information(self, '情報', '保存できるExcelレポートがまだありません。')
+            return
+        source = Path(self._last_excel_report_path)
+        path, _ = QFileDialog.getSaveFileName(self, 'Excelレポートを保存', source.name, 'Excel Files (*.xlsx)')
+        if not path:
+            return
+        if not path.lower().endswith('.xlsx'):
+            path += '.xlsx'
+        try:
+            shutil.copy2(source, path)
+            self._log_view.append_log('INFO', f'📊 Excelレポート保存完了: {path}')
+            QMessageBox.information(self, '保存完了', f'Excelレポートを保存しました:\n{path}')
+        except Exception as e:
+            QMessageBox.critical(self, '保存エラー', str(e))
 
     def _export_csv(self) -> None:
         if not self._scam_records:
@@ -572,7 +771,7 @@ class MainWindow(QMainWindow):
             return
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
-                writer = csv.DictWriter(f, fieldnames=['detected_at', 'domain', 'target_brand', 'url', 'features', 'ip_address', 'scan_url'])
+                writer = csv.DictWriter(f, fieldnames=['detected_at', 'domain', 'target_brand', 'category', 'url', 'features', 'ip_address', 'scan_url'])
                 writer.writeheader()
                 writer.writerows(self._scam_records)
             self._log_view.append_log('INFO', f'📥 CSV エクスポート完了: {path}')
