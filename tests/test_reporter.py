@@ -90,6 +90,30 @@ class ExcelReporterTests(unittest.TestCase):
             self.assertTrue(template.exists())
             self.assertEqual(len(list(template_dir.glob('template_*.xlsx'))), 0)
 
+    def test_report_can_be_saved_directly_to_selected_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = self._create_template(directory)
+            selected = root / 'chosen' / '確認結果.xlsx'
+            reporter = ExcelReporter(str(template), reporter_name='確認者')
+            reporter.append_record(
+                url='https://dangerous.example', target_brand='確認対象',
+                features='人手確認済み', category='phishing',
+            )
+
+            saved = Path(reporter.save(selected))
+
+            self.assertEqual(saved, selected)
+            self.assertTrue(saved.exists())
+            self.assertGreater(saved.stat().st_size, 0)
+
+    def test_template_cannot_be_overwritten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template = self._create_template(directory)
+            reporter = ExcelReporter(str(template))
+            with self.assertRaisesRegex(ValueError, 'テンプレート'):
+                reporter.save(template)
+
 
 if __name__ == '__main__':
     unittest.main()

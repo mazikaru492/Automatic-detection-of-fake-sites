@@ -3,7 +3,7 @@ import sys
 import csv
 import hashlib
 import json
-import shutil
+import re
 import time
 import webbrowser
 from datetime import datetime
@@ -29,6 +29,7 @@ from key_manager import (
     save_api_key,
 )
 COLORS = {'bg_dark': '#0a0e1a', 'bg_panel': '#0f1628', 'bg_card': '#151e35', 'bg_input': '#1a2545', 'accent_cyan': '#00d4ff', 'accent_blue': '#4d9fff', 'accent_green': '#00ff88', 'accent_red': '#ff4757', 'accent_orange': '#ffa502', 'text_primary': '#e8f4f8', 'text_secondary': '#7fa3c0', 'text_dim': '#3d5a78', 'border': '#1e3a5a', 'border_glow': '#00d4ff33'}
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OPTIONAL_FEATURE_TOOLTIPS = {
     'ct': (
         'Certificate Transparency（証明書公開ログ）を監視し、'
@@ -279,6 +280,8 @@ class LogView(QTextEdit):
 
     @pyqtSlot(str, str)
     def append_log(self, level: str, message: str) -> None:
+        if not re.match(r'^\d{2}:\d{2}:\d{2} \[[A-Z]+\] ', message):
+            message = f"{datetime.now().strftime('%H:%M:%S')} [{level.upper()}] {message}"
         color = self.LOG_COLORS.get(level, COLORS['text_primary'])
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -495,7 +498,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_row)
         self._btn_save_report = QPushButton('📊  Excelレポートを保存')
         self._btn_save_report.setObjectName('btn_save')
-        self._btn_save_report.setEnabled(False)
+        self._btn_save_report.setToolTip('「疑いが強い」または「資料作成済み」にした候補をExcelへ保存します')
         self._btn_save_report.clicked.connect(self._save_excel_report)
         layout.addWidget(self._btn_save_report)
         clear_btn = QPushButton('🗑  ログをクリア')
@@ -559,6 +562,14 @@ class MainWindow(QMainWindow):
         log_layout.setContentsMargins(8, 8, 8, 8)
         self._log_view = LogView()
         log_layout.addWidget(self._log_view)
+        log_button_row = QHBoxLayout()
+        log_button_row.addStretch()
+        export_log_btn = QPushButton('URLログをExcelで保存')
+        export_log_btn.setObjectName('btn_secondary')
+        export_log_btn.setToolTip('フィルタ通過URLとスキャン対象URLを、読みやすい2シートのExcelへ保存します')
+        export_log_btn.clicked.connect(self._export_url_logs_excel)
+        log_button_row.addWidget(export_log_btn)
+        log_layout.addLayout(log_button_row)
         tabs.addTab(log_tab, '📡  リアルタイムログ')
         result_tab = QWidget()
         result_layout = QVBoxLayout(result_tab)
@@ -807,14 +818,38 @@ class MainWindow(QMainWindow):
         if not self._report_output_input.text().strip():
             QMessageBox.warning(self, '入力エラー', '検出結果の保存先を選択してください。')
             return False
+        template_path = self._resolve_local_path(self._excel_path_input.text().strip())
+        if not template_path.is_file():
+            QMessageBox.warning(
+                self, '入力エラー', f'Excelテンプレートが見つかりません。\n\n{template_path}'
+            )
+            return False
+        if template_path.suffix.lower() not in ('.xls', '.xlsx', '.xlsm'):
+            QMessageBox.warning(self, '入力エラー', 'Excelテンプレートは.xls、.xlsx、.xlsmを選択してください。')
+            return False
+        output_dir = self._resolve_local_path(self._report_output_input.text().strip())
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            QMessageBox.warning(
+                self, '入力エラー', f'検出結果の保存先を作成できません。\n\n{output_dir}\n{exc}'
+            )
+            return False
+        if not output_dir.is_dir():
+            QMessageBox.warning(self, '入力エラー', f'検出結果の保存先がフォルダーではありません。\n\n{output_dir}')
+            return False
         return True
+
+    @staticmethod
+    def _resolve_local_path(value: str) -> Path:
+        path = Path(value).expanduser()
+        return path.resolve() if path.is_absolute() else (PROJECT_ROOT / path).resolve()
 
     def _start_pipeline(self) -> None:
         if not self._validate_inputs():
             return
 
         self._last_excel_report_path = ''
-        self._btn_save_report.setEnabled(False)
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
         save_api_key(SUPABASE_ANON_KEY_NAME, self._supabase_anon_input.value)
@@ -999,12 +1034,8 @@ class MainWindow(QMainWindow):
                     COLORS['accent_red'] if status == 'strong_suspicion'
                     else COLORS['accent_green']
                 ))
-        has_exportable = any(
-            record.get('review_status') in ('strong_suspicion', 'report_prepared')
-            for record in self._scam_records
-        )
         self._last_excel_report_path = ''
-        self._btn_save_report.setEnabled(has_exportable)
+        self._btn_save_report.setEnabled(True)
         self._log_view.append_log(
             'INFO', f'👤 人手レビューを記録: {label} ({len(reviewed_rows)}件)'
         )
@@ -1295,43 +1326,46 @@ class MainWindow(QMainWindow):
         if not exportable:
             QMessageBox.information(self, '情報', '「疑いが強い」と人手確認された候補がありません。')
             return
-        if not self._last_excel_report_path or not Path(self._last_excel_report_path).exists():
-            try:
-                from reporter import ExcelReporter
-                reporter = ExcelReporter(
-                    self._excel_path_input.text(),
-                    self._reporter_name_input.text().strip(),
-                    self._report_output_input.text().strip(),
-                )
-                for record in exportable:
-                    review_note = (
-                        f"{record.get('features', '')}; 人手レビュー={record.get('review_reason', '')}; "
-                        f"ルール={record.get('rules', '')}; 情報充足度={record.get('completeness_label', '')}"
-                    )
-                    reporter.append_record(
-                        url=record.get('url', ''),
-                        target_brand=record.get('target_brand', ''),
-                        features=review_note,
-                        detected_at=record.get('detected_at', ''),
-                        category=record.get('category', ''),
-                    )
-                self._last_excel_report_path = reporter.save()
-            except Exception as exc:
-                QMessageBox.critical(self, '保存エラー', str(exc))
-                return
-        source = Path(self._last_excel_report_path)
-        path, _ = QFileDialog.getSaveFileName(self, 'Excelレポートを保存', source.name, 'Excel Files (*.xlsx)')
+        output_dir = self._resolve_local_path(self._report_output_input.text().strip())
+        default_path = output_dir / f"scam_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(
+            self, 'Excelレポートを保存', str(default_path), 'Excel Files (*.xlsx)'
+        )
         if not path:
             return
         if not path.lower().endswith('.xlsx'):
             path += '.xlsx'
         try:
-            shutil.copy2(source, path)
-            self._write_evidence_manifest(Path(path), exportable)
+            from reporter import ExcelReporter
+            reporter = ExcelReporter(
+                self._excel_path_input.text(),
+                self._reporter_name_input.text().strip(),
+                self._report_output_input.text().strip(),
+            )
+            for record in exportable:
+                review_note = (
+                    f"{record.get('features', '')}; 人手レビュー={record.get('review_reason', '')}; "
+                    f"ルール={record.get('rules', '')}; 情報充足度={record.get('completeness_label', '')}"
+                )
+                reporter.append_record(
+                    url=record.get('url', ''),
+                    target_brand=record.get('target_brand', ''),
+                    features=review_note,
+                    detected_at=record.get('detected_at', ''),
+                    category=record.get('category', ''),
+                )
+            saved_path = Path(reporter.save(path))
+            self._last_excel_report_path = str(saved_path)
+            self._write_evidence_manifest(saved_path, exportable)
             self._log_view.append_log('INFO', f'📊 Excelレポート保存完了: {path}')
             QMessageBox.information(self, '保存完了', f'Excelレポートを保存しました:\n{path}')
         except Exception as e:
-            QMessageBox.critical(self, '保存エラー', str(e))
+            QMessageBox.critical(
+                self, '保存エラー',
+                f'Excelレポートを保存できませんでした。\n\n'
+                f'テンプレート: {self._resolve_local_path(self._excel_path_input.text())}\n'
+                f'保存先: {path}\n\n{e}'
+            )
 
     def _export_csv(self) -> None:
         records = [
@@ -1343,9 +1377,14 @@ class MainWindow(QMainWindow):
             return
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         default_name = f'scam_report_{timestamp}.csv'
-        path, _ = QFileDialog.getSaveFileName(self, 'CSVレポートを保存', default_name, 'CSV Files (*.csv)')
+        output_dir = self._resolve_local_path(self._report_output_input.text().strip())
+        path, _ = QFileDialog.getSaveFileName(
+            self, 'CSVレポートを保存', str(output_dir / default_name), 'CSV Files (*.csv)'
+        )
         if not path:
             return
+        if not path.lower().endswith('.csv'):
+            path += '.csv'
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
                 fieldnames = [
@@ -1367,6 +1406,24 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, 'エクスポート完了', f'保存しました:\n{path}')
         except Exception as e:
             QMessageBox.critical(self, '保存エラー', str(e))
+
+    def _export_url_logs_excel(self) -> None:
+        output_dir = self._resolve_local_path(self._report_output_input.text().strip() or '検出結果')
+        default_path = output_dir / f"URLログ_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(
+            self, 'URLログをExcelで保存', str(default_path), 'Excel Files (*.xlsx)'
+        )
+        if not path:
+            return
+        try:
+            from url_audit_log import export_audit_logs_to_excel
+            saved_path = export_audit_logs_to_excel(path)
+            self._log_view.append_log('INFO', f'URLログのExcel保存完了: {saved_path}')
+            QMessageBox.information(self, '保存完了', f'URLログを保存しました:\n{saved_path}')
+        except Exception as exc:
+            QMessageBox.critical(
+                self, '保存エラー', f'URLログをExcelへ保存できませんでした。\n\n{exc}'
+            )
 
     @staticmethod
     def _neutralize_csv_formula(value):
@@ -1411,7 +1468,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         if self._worker and self._worker.isRunning():
-            reply = QMessageBox.question(self, '終了確認', '監視が実行中です。終了しますか？\n\n（停止後、検出済みデータは Excel に自動保存されます）', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            reply = QMessageBox.question(self, '終了確認', '監視が実行中です。終了しますか？\n\n停止後、確認済みの候補は「Excelレポートを保存」から保存できます。', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.No:
                 event.ignore()
                 return

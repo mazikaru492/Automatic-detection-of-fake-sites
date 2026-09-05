@@ -341,13 +341,23 @@ class ExcelReporter:
         self._appended_count += 1
         logger.info(f'📝 Excel に追記 (行 {row}): {url[:60]}...')
 
-    def save(self) -> str:
+    def save(self, destination: str | Path | None = None) -> str:
         try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_dir = self._output_dir or self._output_path.parent
+            if destination is None:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output_dir = self._output_dir or self._output_path.parent
+                output_name = f'{self._output_path.stem}_{timestamp}{self._output_path.suffix}'
+                output_path = output_dir / output_name
+            else:
+                output_path = Path(destination).expanduser()
+                if not output_path.is_absolute():
+                    output_path = (PROJECT_ROOT / output_path).resolve()
+                if output_path.suffix.lower() not in ('.xlsx', '.xlsm'):
+                    output_path = output_path.with_suffix('.xlsx')
+                if output_path.resolve() == self._excel_path.resolve():
+                    raise ValueError('元のExcelテンプレートと同じ場所・名前には保存できません。')
+                output_dir = output_path.parent
             output_dir.mkdir(parents=True, exist_ok=True)
-            output_name = f'{self._output_path.stem}_{timestamp}{self._output_path.suffix}'
-            output_path = output_dir / output_name
             self._workbook.save(str(output_path))
             logger.info(f'✅ Excel レポートを保存しました: {output_path} ({self._appended_count} 件追記)')
             return str(output_path)
