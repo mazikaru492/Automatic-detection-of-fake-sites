@@ -1340,11 +1340,12 @@ class MainWindow(QMainWindow):
         else:
             if self._scam_records:
                 self._log_view.append_log(
-                    'INFO', 'ℹ️  収集完了。候補を人手レビュー後にレポート出力できます'
+                    'INFO', 'ℹ️  収集完了。CSVは未レビューでも保存できます。レビューは随時行えます'
                 )
                 QMessageBox.information(
                     self, '収集完了',
-                    '処理が完了しました。\n\n検出一覧で候補を選び、レビュー状態を確定してください。'
+                    '処理が完了しました。\n\nCSVは未レビューでも保存できます。\n'
+                    'レビューは検出一覧で候補を選び、必要なときに行ってください。'
                 )
             else:
                 self._log_view.append_log('INFO', 'ℹ️  レビュー候補はありませんでした')
@@ -1415,12 +1416,9 @@ class MainWindow(QMainWindow):
             )
 
     def _export_csv(self) -> None:
-        records = [
-            record for record in self._scam_records
-            if record.get('review_status') in ('strong_suspicion', 'report_prepared')
-        ]
+        records = list(self._scam_records)
         if not records:
-            QMessageBox.information(self, '情報', '人手レビュー済みの出力対象がありません。')
+            QMessageBox.information(self, '情報', '出力対象の候補がありません。')
             return
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         default_name = f'scam_report_{timestamp}.csv'

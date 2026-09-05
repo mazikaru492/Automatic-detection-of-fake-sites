@@ -1,3 +1,5 @@
+import csv
+import json
 import sys
 import tempfile
 import unittest
@@ -11,6 +13,59 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
 
 class GuiExportTests(unittest.TestCase):
+    def test_csv_saves_all_review_states_and_can_be_saved_again_after_review(self):
+        try:
+            import gui
+        except ImportError:
+            self.skipTest('PyQt6 is unavailable')
+
+        for statuses in (
+            ['unreviewed'],
+            ['unreviewed', 'investigating', 'no_issue', 'strong_suspicion',
+             'inconclusive', 'report_prepared', 'response_verified'],
+        ):
+            with self.subTest(statuses=statuses), tempfile.TemporaryDirectory() as directory:
+                selected = Path(directory) / '候補.csv'
+                records = [
+                    {'candidate_id': str(index), 'review_status': status,
+                     'url': f'https://example.test/{index}', 'features': '確認対象'}
+                    for index, status in enumerate(statuses)
+                ]
+                original_records = [dict(record) for record in records]
+                context = SimpleNamespace(
+                    _scam_records=records,
+                    _report_output_input=SimpleNamespace(text=lambda: directory),
+                    _log_view=SimpleNamespace(append_log=lambda *_: None),
+                    _resolve_local_path=gui.MainWindow._resolve_local_path,
+                    _neutralize_csv_formula=gui.MainWindow._neutralize_csv_formula,
+                    _write_evidence_manifest=gui.MainWindow._write_evidence_manifest,
+                )
+                with (
+                    patch.object(gui.QFileDialog, 'getSaveFileName', return_value=(str(selected), '')),
+                    patch.object(gui.QMessageBox, 'information'),
+                    patch.object(gui.QMessageBox, 'critical') as critical,
+                ):
+                    gui.MainWindow._export_csv(context)
+                    critical.assert_not_called()
+                    with selected.open(encoding='utf-8-sig', newline='') as exported:
+                        rows = list(csv.DictReader(exported))
+                    self.assertEqual([row['review_status'] for row in rows], statuses)
+                    self.assertEqual([row['url'] for row in rows], [r['url'] for r in records])
+                    self.assertEqual(records, original_records)
+                    manifest = json.loads(selected.with_suffix('.csv.manifest.json').read_text(encoding='utf-8'))
+                    self.assertEqual(
+                        [r['review_status'] for r in manifest['reviewed_candidates']], statuses,
+                    )
+
+                    records[0].update(review_status='strong_suspicion', review_reason='複数根拠あり')
+                    gui.MainWindow._export_csv(context)
+                    critical.assert_not_called()
+                    with selected.open(encoding='utf-8-sig', newline='') as exported:
+                        updated_rows = list(csv.DictReader(exported))
+                    self.assertEqual(len(updated_rows), len(records))
+                    self.assertEqual(updated_rows[0]['review_status'], 'strong_suspicion')
+                    self.assertEqual(updated_rows[0]['review_reason'], '複数根拠あり')
+
     def test_reviewed_result_is_saved_directly_to_chosen_excel_path(self):
         try:
             import gui
