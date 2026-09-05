@@ -190,6 +190,7 @@ class SupabaseRepositoryTests(unittest.TestCase):
             / 'supabase' / 'migrations' / '202609060001_shared_trusted_learning.sql'
         ).read_text(encoding='utf-8').lower()
         self.assertIn('private.trusted_app_users', shared_migration)
+        self.assertIn('alter table private.trusted_app_users enable row level security', shared_migration)
         self.assertIn('private.require_trusted_user()', shared_migration)
         self.assertIn('detection_candidates_shared_domain_hash_idx', shared_migration)
         self.assertIn("where domain_hash = p_domain_hash", shared_migration)

@@ -11,6 +11,10 @@ create table if not exists private.trusted_app_users (
   active boolean not null default true,
   added_at timestamptz not null default now()
 );
+-- This table is not exposed through the Data API. RLS is still enabled as a
+-- second access-control layer; the narrowly scoped SECURITY DEFINER function
+-- below is the only application path that reads it.
+alter table private.trusted_app_users enable row level security;
 revoke all on private.trusted_app_users from public, anon, authenticated;
 
 insert into private.trusted_app_users (user_id)
