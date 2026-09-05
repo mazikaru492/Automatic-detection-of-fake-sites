@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from analyzer import _sanitize_untrusted_html
 from monitor import DomainMonitor, MAX_CANDIDATES_PER_GROUP, classify_domain_candidate
 from scanner import detect_page_signals
-from verification import decide_report
+from verification import decide_report, should_analyze
 
 
 def analysis_for(category: str, **overrides):
@@ -50,6 +50,13 @@ class MultiCategoryCandidateTests(unittest.TestCase):
                 self.assertGreaterEqual(score, 6)
                 self.assertEqual(brand, '')
                 self.assertEqual(kind, expected_kind)
+
+    def test_japanese_idn_counterfeit_candidate_is_selected(self):
+        label = 'スーパーコピー通販'.encode('idna').decode('ascii')
+        score, brand, _, kind = classify_domain_candidate(f'{label}.shop')
+        self.assertGreaterEqual(score, 6)
+        self.assertEqual(brand, '')
+        self.assertEqual(kind, 'counterfeit_goods')
 
     def test_single_generic_keyword_does_not_reach_queue_threshold(self):
         score, _, _, _ = classify_domain_candidate('replica.com')
@@ -165,6 +172,20 @@ class MultiCategoryReportGateTests(unittest.TestCase):
             ),
         )
         self.assertFalse(decision.confirmed)
+
+    def test_precheck_skips_ai_when_transaction_evidence_is_impossible(self):
+        precheck = should_analyze(
+            self._domain('counterfeit_goods'),
+            self._scan(counterfeit=['スーパーコピー']),
+        )
+        self.assertFalse(precheck.proceed)
+
+    def test_precheck_allows_ai_when_required_page_signals_exist(self):
+        precheck = should_analyze(
+            self._domain('counterfeit_goods'),
+            self._scan(transaction=['購入'], counterfeit=['スーパーコピー']),
+        )
+        self.assertTrue(precheck.proceed)
 
 
 if __name__ == '__main__':

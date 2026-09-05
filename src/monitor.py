@@ -12,17 +12,18 @@ from urllib.parse import urlparse
 import requests
 import tldextract
 from cryptography import x509
+from url_audit_log import UrlAuditLog
 
 logger = logging.getLogger(__name__)
 CHROME_LOG_LIST_URL = 'https://www.gstatic.com/ct/log_list/v3/log_list.json'
 CT_REQUEST_TIMEOUT_SEC = 20
 CT_BATCH_SIZE = 1024
-CT_INITIAL_LOOKBACK = 256
+CT_INITIAL_LOOKBACK = 2048
 CT_POLL_INTERVAL_SEC = 2
 OPENPHISH_FEED_URL = 'https://openphish.com/feed.txt'
 OPENPHISH_REFRESH_SEC = 30 * 60
 DIVERSITY_WINDOW_SEC = 10 * 60
-MAX_CANDIDATES_PER_GROUP = 8
+MAX_CANDIDATES_PER_GROUP = 12
 BRAND_ALIASES: dict[str, tuple[str, ...]] = {
     '佐川急便': ('sagawa',),
     'ヤマト運輸': ('yamato', 'kuroneko'),
@@ -59,19 +60,22 @@ PHISHING_KEYWORDS: set[str] = {
 }
 COMMERCE_KEYWORDS: set[str] = {
     'buy', 'deal', 'deals', 'mall', 'market', 'outlet', 'sale', 'shop',
-    'store', 'wholesale',
+    'store', 'wholesale', '通販', '販売', '市場',
 }
 SCAM_SHOP_KEYWORDS: set[str] = {
     'bargain', 'clearance', 'closing', 'discount', 'limited', 'liquidation',
-    'officialsale', 'stockout', 'warehouse',
+    'officialsale', 'stockout', 'warehouse', '激安', '在庫処分',
+    '閉店セール', '限定販売',
 }
 COUNTERFEIT_KEYWORDS: set[str] = {
     'clone', 'copybrand', 'counterfeit', 'fakebrand', 'mirrorcopy', 'replica',
-    'superclone', 'supercopy',
+    'superclone', 'supercopy', 'コピー品', '偽物', '模倣品', 'レプリカ',
+    'スーパーコピー',
 }
 ILLICIT_GOODS_KEYWORDS: set[str] = {
     'anabolic', 'cannabis', 'cocaine', 'designerdrug', 'fentanyl', 'marijuana',
-    'mdma', 'researchchemical', 'steroid', 'thc',
+    'mdma', 'researchchemical', 'steroid', 'thc', '大麻', '覚醒剤',
+    '違法薬物', '処方箋不要',
 }
 SUSPICIOUS_TLDS: list[str] = ['.top', '.xyz', '.shop', '.club', '.vip', '.cn', '.buzz', '.icu', '.fit', '.surf', '.space', '.gdn', '.win', '.loan', '.date', '.accountant']
 SAFE_DOMAINS: set[str] = {
@@ -106,16 +110,26 @@ def _edit_distance_at_most_one(left: str, right: str) -> bool:
         index_right += 1
     return True
 
+def _decode_idn_domain(domain: str) -> str:
+    decoded = []
+    for label in domain.split('.'):
+        try:
+            decoded.append(label.encode('ascii').decode('idna'))
+        except (UnicodeError, UnicodeEncodeError):
+            decoded.append(label)
+    return '.'.join(decoded)
+
 def classify_domain_candidate(domain: str) -> tuple[int, str, str, str]:
     if not domain:
         return (0, '', '', '')
     domain_lower = domain.lower().removeprefix('*.').rstrip('.')
+    matching_domain = _decode_idn_domain(domain_lower).casefold()
     ext = TLD_EXTRACT(domain_lower)
     registered_domain = ext.registered_domain
     if registered_domain in SAFE_DOMAINS:
         return (0, '', '', '')
-    labels = [part for part in re.split(r'[.\-_]+', domain_lower) if part]
-    compact_labels = [part.replace('-', '') for part in domain_lower.split('.')]
+    labels = [part for part in re.split(r'[.\-_]+', matching_domain) if part]
+    compact_labels = [part.replace('-', '') for part in matching_domain.split('.')]
     matched_brand = ''
     matched_alias = ''
     brand_score = 0
@@ -148,7 +162,8 @@ def classify_domain_candidate(domain: str) -> tuple[int, str, str, str]:
             return sorted({
                 keyword for keyword in keywords
                 if keyword in labels or (
-                    len(keyword) >= 5 and any(keyword in label for label in compact_labels)
+                    (len(keyword) >= 5 or any(ord(char) > 127 for char in keyword))
+                    and any(keyword in label for label in compact_labels)
                 )
             })
 
@@ -206,8 +221,19 @@ def is_suspicious(domain: str) -> tuple[bool, str]:
 
 class DomainMonitor:
 
-    def __init__(self, domain_queue: queue.Queue, max_queue_size: int=500):
+    def __init__(
+        self,
+        domain_queue: queue.Queue,
+        max_queue_size: int = 500,
+        *,
+        ct_enabled: bool = False,
+        phishing_feed_enabled: bool = True,
+        audit_log: Optional[UrlAuditLog] = None,
+    ):
         self._queue = domain_queue
+        self._ct_enabled = bool(ct_enabled)
+        self._phishing_feed_enabled = bool(phishing_feed_enabled)
+        self._audit_log = audit_log
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._processed_count = 0
@@ -217,6 +243,8 @@ class DomainMonitor:
         self._seen_domain_order: deque[str] = deque(maxlen=100000)
         self._candidate_group_history: deque[tuple[float, str]] = deque()
         self._candidate_group_counts: Counter[str] = Counter()
+        self._source_counts: Counter[str] = Counter()
+        self._duplicate_count = 0
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -232,33 +260,47 @@ class DomainMonitor:
 
     @property
     def stats(self) -> dict:
-        return {'processed': self._processed_count, 'accepted': self._accepted_count}
+        return {
+            'processed': self._processed_count,
+            'accepted': self._accepted_count,
+            'duplicates': self._duplicate_count,
+            'source_counts': dict(self._source_counts),
+        }
 
     def _run(self) -> None:
-        try:
-            log_urls = self._load_log_urls()
-            cursors: dict[str, int] = {}
-            with ThreadPoolExecutor(max_workers=min(8, len(log_urls))) as executor:
-                futures = {
-                    executor.submit(self._get_tree_size, url): url for url in log_urls
-                }
-                for future in as_completed(futures):
-                    url = futures[future]
-                    try:
-                        cursors[url] = max(0, future.result() - CT_INITIAL_LOOKBACK)
-                    except Exception as e:
-                        logger.warning(f'応答しないCTログを除外しました ({url}): {e}')
-            log_urls = list(cursors)
-            if not log_urls:
-                raise RuntimeError('応答するCTログがありません')
-            logger.info(f'✅ Certificate Transparency 直接監視を開始しました ({len(log_urls)}ログ)')
-        except Exception as e:
-            logger.error(f'CTログ一覧の取得に失敗しました: {e}')
+        log_urls: list[str] = []
+        cursors: dict[str, int] = {}
+        if self._ct_enabled:
+            try:
+                log_urls = self._load_log_urls()
+                with ThreadPoolExecutor(max_workers=min(8, len(log_urls))) as executor:
+                    futures = {
+                        executor.submit(self._get_tree_size, url): url for url in log_urls
+                    }
+                    for future in as_completed(futures):
+                        url = futures[future]
+                        try:
+                            cursors[url] = max(0, future.result() - CT_INITIAL_LOOKBACK)
+                        except Exception as e:
+                            logger.warning(f'応答しないCTログを除外しました ({url}): {e}')
+                log_urls = list(cursors)
+                if not log_urls:
+                    raise RuntimeError('応答するCTログがありません')
+                logger.info(f'✅ Certificate Transparency 直接監視を開始しました ({len(log_urls)}ログ)')
+            except Exception as e:
+                logger.error(f'CTログ一覧の取得に失敗しました: {e}')
+                if not self._phishing_feed_enabled:
+                    return
+        else:
+            logger.info('Certificate Transparency監視は設定により無効です')
+
+        if not self._phishing_feed_enabled and not log_urls:
+            logger.warning('有効な収集元がありません。設定を確認してください')
             return
 
         next_feed_refresh = 0.0
         while not self._stop_event.is_set():
-            if time.monotonic() >= next_feed_refresh:
+            if self._phishing_feed_enabled and time.monotonic() >= next_feed_refresh:
                 self._load_openphish_candidates()
                 next_feed_refresh = time.monotonic() + OPENPHISH_REFRESH_SEC
             received = 0
@@ -285,7 +327,8 @@ class DomainMonitor:
                     logger.warning(f'CTログ取得エラー ({url}): {e}')
             if received:
                 logger.info(f'📥 CT証明書を {received:,} 件受信しました')
-            self._stop_event.wait(CT_POLL_INTERVAL_SEC)
+            wait_seconds = CT_POLL_INTERVAL_SEC if log_urls else min(60, OPENPHISH_REFRESH_SEC)
+            self._stop_event.wait(wait_seconds)
 
     def _load_log_urls(self) -> list[str]:
         response = self._session.get(CHROME_LOG_LIST_URL, timeout=CT_REQUEST_TIMEOUT_SEC)
@@ -374,20 +417,21 @@ class DomainMonitor:
             for url in response.text.splitlines():
                 parsed = urlparse(url.strip())
                 domain = (parsed.hostname or '').lower().rstrip('.')
+                if not domain:
+                    continue
                 score, brand, reason, candidate_kind = classify_domain_candidate(domain)
-                # The feed is global. Generic entries would consume the scan
-                # budget without providing a brand-mismatch verification path.
-                if not brand:
+                registered_domain = TLD_EXTRACT(domain).registered_domain
+                if registered_domain in SAFE_DOMAINS:
                     continue
                 if self._enqueue_candidate(
                     domain=domain,
                     url=url.strip(),
                     brand=brand,
                     score=max(score + 5, 9),
-                    reason=f'OpenPhish登録済み; {reason}',
+                    reason=f'OpenPhish登録済み; {reason or "ブランド未特定"}',
                     source='OpenPhish',
                     known_phishing=True,
-                    candidate_kind=candidate_kind,
+                    candidate_kind=candidate_kind or 'known_phishing',
                 ):
                     added += 1
             logger.info(f'🛡️ OpenPhishから日本ブランド候補を {added} 件追加しました')
@@ -406,12 +450,15 @@ class DomainMonitor:
         candidate_kind: str = 'brand_impersonation',
     ) -> bool:
         if not domain or domain in self._seen_domains:
+            if domain in self._seen_domains:
+                self._duplicate_count += 1
             return False
         if len(self._seen_domain_order) == self._seen_domain_order.maxlen:
             self._seen_domains.discard(self._seen_domain_order[0])
         self._seen_domain_order.append(domain)
         self._seen_domains.add(domain)
-        group = f'brand:{brand}' if brand else f'kind:{candidate_kind}'
+        suffix = TLD_EXTRACT(domain).suffix or 'unknown'
+        group = f'brand:{brand}' if brand else f'kind:{candidate_kind}:tld:{suffix}'
         now = time.monotonic()
         while self._candidate_group_history and now - self._candidate_group_history[0][0] >= DIVERSITY_WINDOW_SEC:
             _, expired_group = self._candidate_group_history.popleft()
@@ -424,6 +471,7 @@ class DomainMonitor:
         self._candidate_group_history.append((now, group))
         self._candidate_group_counts[group] += 1
         self._accepted_count += 1
+        self._source_counts[source] += 1
         if self._queue.full():
             try:
                 self._queue.get_nowait()
@@ -440,5 +488,13 @@ class DomainMonitor:
             'candidate_kind': candidate_kind,
             'detected_at': time.strftime('%Y-%m-%d %H:%M:%S'),
         })
+        if self._audit_log is not None:
+            self._audit_log.record_filter_passed(
+                url,
+                domain=domain,
+                source=source,
+                candidate_kind=candidate_kind,
+                score=score,
+            )
         logger.info(f'🚨 高信頼候補: {domain} ({reason}; source={source})')
         return True

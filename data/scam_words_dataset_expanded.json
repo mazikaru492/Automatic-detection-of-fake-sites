@@ -1,0 +1,1535 @@
+[
+    {
+        "keyword": "N級品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 1.0,
+        "context_for_ai": "偽ブランド品の品質ランクを示す隠語。この単語が存在する場合、100%違法販売サイトである。"
+    },
+    {
+        "keyword": "S級品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 1.0,
+        "context_for_ai": "偽造品のランクを示す隠語。"
+    },
+    {
+        "keyword": "スーパーコピー",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 1.0,
+        "context_for_ai": "高品質な偽造品であることを明示する言葉。違法性の強い確証。"
+    },
+    {
+        "keyword": "完璧なレプリカ",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽物であることを認めた上で販売している違法サイトの可能性が極めて高い。"
+    },
+    {
+        "keyword": "工場横流し品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "正規ルートではない非合法な出所をアピールし、安さを正当化する詐欺の常套句。"
+    },
+    {
+        "keyword": "税関クリア済み",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "海外からの偽ブランド品密輸を疑わせるフレーズ。正規店では絶対に使用されない。"
+    },
+    {
+        "keyword": "工場直販",
+        "category": "counterfeit",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "正規のメーカーも使用するが、極端な安値と組み合わさる場合は偽物販売の言い訳として使われる。"
+    },
+    {
+        "keyword": "銀行振込のみ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "クレジットカード会社の審査を通っていない、または口座凍結を前提とした詐欺サイトの典型的な特徴。"
+    },
+    {
+        "keyword": "個人名義",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.95,
+        "context_for_ai": "法人サイトであるにもかかわらず、振込先が個人名義（特に外国人名）の場合は詐欺の可能性が極めて高い。"
+    },
+    {
+        "keyword": "システム障害のためクレジットカード利用不可",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "カード決済ができるように見せかけ、最終的に銀行振込へ誘導する詐欺の手口。"
+    },
+    {
+        "keyword": "代金引換不可",
+        "category": "payment_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "前払いで資金を騙し取る目的のため、商品到着時の支払いを拒否する傾向がある。"
+    },
+    {
+        "keyword": "激安全品",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "常に異常な割引率（80%OFFなど）を提示し続けるサイトは詐欺の疑いがある。"
+    },
+    {
+        "keyword": "驚愕の価格",
+        "category": "price_anomaly",
+        "risk_level": "Low",
+        "risk_score": 0.3,
+        "context_for_ai": "スパム的な誇大広告。単体では詐欺と言い切れないが、他のリスク単語との共起でリスクが上昇。"
+    },
+    {
+        "keyword": "タイムセール終了まであと",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ページを更新するたびにリセットされる偽のタイマーで冷静な判断を奪う手口。"
+    },
+    {
+        "keyword": "在庫処分につき急げ",
+        "category": "urgency",
+        "risk_level": "Low",
+        "risk_score": 0.4,
+        "context_for_ai": "一般的なマーケティングでも使われるが、不当な価格設定とセットの場合は危険。"
+    },
+    {
+        "keyword": "@gmail.com",
+        "category": "operator_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.7,
+        "context_for_ai": "法人通販サイトの公式連絡先がフリーメールアドレスである場合、実体のない詐欺業者の可能性が高い。"
+    },
+    {
+        "keyword": "@yahoo.co.jp",
+        "category": "operator_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.7,
+        "context_for_ai": "同上。"
+    },
+    {
+        "keyword": "返品・交換一切不可",
+        "category": "operator_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "特定商取引法に違反するような極端な免責事項を記載している場合は悪質。"
+    },
+    {
+        "keyword": "送料無料を楽しむ",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "不自然な機械翻訳（Enjoy free shippingの直訳など）。海外の詐欺グループが運営している兆候。"
+    },
+    {
+        "keyword": "SS級品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "超A級",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "最高品質レプリカ",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "コピーブランド",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "偽ブランド",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "パチモン",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "バッタモン",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "〇〇風",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "〇〇調",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "カスタム品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "ノベルティ（非売品）",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "サンプル品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "検品落ち",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "B級アウトレット",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "工場直輸入品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "独自ルート輸入",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "並行輸入",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "税関対策済み",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "ロゴなし",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "ロゴ隠し",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "完璧なコピー",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "1:1レプリカ",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "ミラーレプリカ",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "AAA級",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "本物同等",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "正規代理店",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "偽造品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "海賊版",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "クローン商品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "スーパーコピー時計",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "代替品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "互換品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "コピー商品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "コピー版",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "偽造",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "コピー品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "贋作",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "模造品",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "ブートレグ",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "デッドコピー",
+        "category": "counterfeit",
+        "risk_level": "High",
+        "risk_score": 0.9,
+        "context_for_ai": "偽造品や違法販売を示唆する用語。これらの言葉が含まれる場合、非正規の海賊版や模倣品を販売している可能性が極めて高い。"
+    },
+    {
+        "keyword": "PayPay送金のみ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "LINE Pay限定",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "楽天ペイ不可",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "クレカエラー",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "決済システムメンテナンス中",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "指定口座へのお振込",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "個人口座",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "外国人名義の口座",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込手数料はお客様負担",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "電信送金",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "ウエスタンユニオン決済",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "仮想通貨のみ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "ビットコイン送金",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "Amazonギフト券払い",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "iTunesカード払い",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "Vプリカ決済",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "コンビニ決済不可",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "代引き手数料無料（ただし不可）",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "後払い不可",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込先が変わりました",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "口座凍結中",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込先名義人が異なります",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込名義人",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "入金確認後発送",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "先払いのみ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "前払い限定",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "支払い期限1日",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "入金期限が短い",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込控えを送ってください",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "決済エラー",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "送金アプリ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "暗号資産決済",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "BTC決済",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "ETH決済",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "マネーグラム",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "キャッシュアプリ",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "銀行振込(前払い)",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "指定銀行",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "振込先指定",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "個人間送金",
+        "category": "payment_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.85,
+        "context_for_ai": "詐欺サイト特有の決済手段や異常な誘導手法。クレジットカード審査に通過できない悪質業者や、足がつきにくい決済手段（個人送金やギフト券）を要求する特徴がある。"
+    },
+    {
+        "keyword": "90%OFF",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "80%OFF",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "70%OFF",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "破格値",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "市場最低価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "業界最安値",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "他店圧倒",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "超特価",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "爆安",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "激安通販",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "激安市場",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "卸売価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "原価割れ",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "赤字大放出",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "利益ゼロ",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "倒産品",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "差し押さえ品",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "訳あり在庫",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "在庫一掃処分",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "閉店大セール",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "閉店に伴う",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "最終価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "驚愕プライス",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "狂気の安さ",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "全品半額以下",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "タイムセール価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "限定特価",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "特別提供価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "キャンペーン価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "期間限定割引",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "メンバー限定割引",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "VIP割引",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "クーポン適用でタダ",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "送料のみ負担",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "無料提供",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "0円セール",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "大幅値下げ",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "価格破壊",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "限界価格",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "最安値保証",
+        "category": "price_anomaly",
+        "risk_level": "Medium",
+        "risk_score": 0.6,
+        "context_for_ai": "異常な価格設定や誇大広告の疑いがある用語。他のリスク単語（決済異常など）と共起する場合、詐欺サイトの可能性が大幅に上昇する。"
+    },
+    {
+        "keyword": "あと1分",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "残り0点",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "最終在庫",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "残りわずか",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "限定10名",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "ゲリラセール",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "24時間限定",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "タイムセール中",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "数量限定",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "早い者勝ち",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "今すぐ購入",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "本日限定",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "当日限り",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "期限切れ間近",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "終了まであと",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "カウントダウン",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "ラストチャンス",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "売り切れ御免",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "急遽販売終了",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "予約受付終了",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "限定販売",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "キャンペーン終了",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "お急ぎください",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "最後のチャンス",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "在庫限り",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "追加生産なし",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "完売必須",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "争奪戦",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "シークレットセール",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "会員限定セール",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "フラッシュセール",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "ゲリラ割引",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "特別ご招待",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "限定公開",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "今だけ",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "期間限定",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "本日中",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "24時間以内",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "今すぐチェック",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "時間限定",
+        "category": "urgency",
+        "risk_level": "Medium",
+        "risk_score": 0.5,
+        "context_for_ai": "ユーザーの冷静な判断を失わせるための焦燥感を煽るフレーズ。偽のカウントダウンタイマーなどと組み合わせて使用されることが多い。"
+    },
+    {
+        "keyword": "090-",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "080-",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "連絡先はメールのみ",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "特商法ページが画像",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "返品ポリシーなし",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "住所が架空",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "住所が空き地",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "代表者名がアルファベット",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "国際電話番号",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "+86",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "休業日:年中無休",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "営業時間:24時間",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "会社概要なし",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "運営会社不明",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "代表者名なし",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "免責事項のみ",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "キャンセル不可",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "返品不可",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "クレーム不可",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "返金不可",
+        "category": "operator_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.8,
+        "context_for_ai": "実在しない企業や不透明な運営実態を示す特徴。特定商取引法に基づく表記が不十分、または検索逃れのために画像化されている場合は悪質なサイトである。"
+    },
+    {
+        "keyword": "こんにちは友人",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "親愛なるお客様",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "私たちに連絡する",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "カートに追加する",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "100％の満足",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "高品質の経験",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "あなたの選択を歓迎する",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "支払いを完了するください",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "メッセージを残す",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "不自然なフォント",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "繁体字",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "簡体字",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "直訳日本語",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "お金を払う",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "買います",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "すぐに手に入れる",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "大切な顧客",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "良い買い物を",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "質問があれば尋ねる",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    },
+    {
+        "keyword": "ウェルカムトゥ",
+        "category": "language_anomaly",
+        "risk_level": "High",
+        "risk_score": 0.75,
+        "context_for_ai": "海外の詐欺グループが用いる不自然な機械翻訳や中華フォントの痕跡。ネイティブな日本語スピーカーが作成したサイトではないことを強く示唆する。"
+    }
+]

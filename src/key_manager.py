@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 SERVICE_NAME = "CYCOT_FakeSiteDetector"
 URLSCAN_KEY_NAME = "urlscan_api_key"
 GEMINI_KEY_NAME = "gemini_api_key"
+SUPABASE_ANON_KEY_NAME = "supabase_anon_key"
+SUPABASE_PASSWORD_NAME = "supabase_password"
 
 def _get_keyring():
     try:
@@ -43,6 +45,8 @@ def get_api_key(key_name: str) -> Optional[str]:
     env_map = {
         URLSCAN_KEY_NAME: "URLSCAN_API_KEY",
         GEMINI_KEY_NAME: "GEMINI_API_KEY",
+        SUPABASE_ANON_KEY_NAME: "SUPABASE_ANON_KEY",
+        SUPABASE_PASSWORD_NAME: "SUPABASE_PASSWORD",
     }
     env_var = env_map.get(key_name, key_name.upper())
     return os.getenv(env_var, None)
@@ -61,4 +65,6 @@ def load_all_keys() -> dict[str, str]:
     return {
         URLSCAN_KEY_NAME: get_api_key(URLSCAN_KEY_NAME) or "",
         GEMINI_KEY_NAME: get_api_key(GEMINI_KEY_NAME) or "",
+        SUPABASE_ANON_KEY_NAME: get_api_key(SUPABASE_ANON_KEY_NAME) or "",
+        SUPABASE_PASSWORD_NAME: get_api_key(SUPABASE_PASSWORD_NAME) or "",
     }

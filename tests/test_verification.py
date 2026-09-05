@@ -93,6 +93,23 @@ class ReportGateTests(unittest.TestCase):
         strong = decide_report(domain, strong_scan, confirmed_analysis())
         self.assertTrue(strong.confirmed)
 
+    def test_new_phishing_can_use_strong_domain_and_credential_page_evidence(self):
+        domain = {
+            **self.domain,
+            'known_phishing': False,
+            'candidate_kind': 'brand_impersonation',
+            'score': 9,
+        }
+        scan = {
+            **self.scan,
+            'page_signals': {'credential': ['ログイン', 'パスワード']},
+        }
+
+        decision = decide_report(domain, scan, confirmed_analysis())
+
+        self.assertTrue(decision.confirmed)
+        self.assertIn('認証入力画面', decision.evidence_summary)
+
 
 class EvidenceParsingTests(unittest.TestCase):
     def test_schema_defaults_missing_values_to_suspicious(self):

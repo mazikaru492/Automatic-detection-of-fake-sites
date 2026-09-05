@@ -29,8 +29,9 @@ if not exist ".env" (
         echo  .env was created. Please open it and verify the API keys.
         echo ================================================================
         echo.
-        echo  1. URLSCAN_API_KEY
-        echo  2. GEMINI_API_KEY
+echo  1. URLSCAN_API_KEY
+echo  2. GEMINI_API_KEY
+echo  3. SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_EMAIL / SUPABASE_PASSWORD
         echo.
         echo  After setting the keys, run start.bat again.
         echo ================================================================

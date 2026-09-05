@@ -1,18 +1,54 @@
 ﻿import os
 import sys
 import csv
+import hashlib
+import json
 import shutil
 import time
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSlot, QPropertyAnimation, QEasingCurve, QSize
-from PyQt6.QtGui import QColor, QFont, QFontDatabase, QIcon, QPalette, QTextCharFormat, QTextCursor, QPixmap
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QTableWidget, QTableWidgetItem, QTabWidget, QFrame, QFileDialog, QMessageBox, QHeaderView, QScrollArea, QSplitter, QSizePolicy, QSpinBox, QGroupBox, QStatusBar, QProgressBar, QCheckBox
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot
+from PyQt6.QtGui import QColor, QTextCharFormat, QTextCursor
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QLineEdit, QTextEdit, QTableWidget, QTableWidgetItem, QTabWidget, QFrame, QFileDialog, QMessageBox, QHeaderView, QScrollArea, QSplitter, QSpinBox, QGroupBox, QStatusBar, QProgressBar, QCheckBox, QInputDialog, QComboBox
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import PipelineWorker
-from key_manager import save_api_key, get_api_key, load_all_keys, URLSCAN_KEY_NAME, GEMINI_KEY_NAME
+from online_learning import LearningModel, train_challenger
+from app_config import (
+    DEFAULT_FEATURES,
+    DEFAULT_LIMITS,
+    DEFAULT_REPORT_OUTPUT_DIR,
+    DEFAULT_TEMPLATE_PATH,
+)
+from key_manager import (
+    GEMINI_KEY_NAME,
+    SUPABASE_ANON_KEY_NAME,
+    SUPABASE_PASSWORD_NAME,
+    URLSCAN_KEY_NAME,
+    load_all_keys,
+    save_api_key,
+)
 COLORS = {'bg_dark': '#0a0e1a', 'bg_panel': '#0f1628', 'bg_card': '#151e35', 'bg_input': '#1a2545', 'accent_cyan': '#00d4ff', 'accent_blue': '#4d9fff', 'accent_green': '#00ff88', 'accent_red': '#ff4757', 'accent_orange': '#ffa502', 'text_primary': '#e8f4f8', 'text_secondary': '#7fa3c0', 'text_dim': '#3d5a78', 'border': '#1e3a5a', 'border_glow': '#00d4ff33'}
+OPTIONAL_FEATURE_TOOLTIPS = {
+    'ct': (
+        'Certificate Transparency（証明書公開ログ）を監視し、'
+        '新しく発行された証明書から不審なドメイン候補を探します。\n'
+        '通信量と候補数が増えるため、既定では無効です。'
+    ),
+    'urlscan_submission': (
+        '既存のurlscan.io結果が見つからない場合に、対象URLをurlscan.ioへ送信します。\n'
+        '外部サービスへのURL送信とAPI利用枠の消費を伴うため、既定では無効です。'
+    ),
+    'llm': (
+        '取得済みのページ情報をGeminiで補助分析し、候補分類と根拠の整理に利用します。\n'
+        '最終判定は行わず、API利用枠を消費するため、既定では無効です。'
+    ),
+    'automatic_learning': (
+        '人が確定したレビューだけを教師データとして学習します。\n'
+        '評価基準を通過したモデルだけを次回の監視から候補抽出に使用し、'
+        '自動通報や自動確定は行いません。'
+    ),
+}
 SPIN_UP_ICON = (Path(__file__).parent / 'assets' / 'spin-up.svg').as_posix()
 SPIN_DOWN_ICON = (Path(__file__).parent / 'assets' / 'spin-down.svg').as_posix()
 SCANNING_BANNER = '''
@@ -36,9 +72,9 @@ SCANNING_BANNER = '''
    ##....:+++++......+++++..::#@@@%%%%%    @=.. .==@@@@+....-==@@##.........-:::::::::::.
    -....................:.......:=%%%%   =+....====@@@:...====*@%...........::::::::::.
    .:::.......................:::-=::-   :*..-=====@@@=.-=====#@@@%.........:::::::.
-   .:::...%#.........-@-...::::::::::::.  **======@@@@@+=====#@@@@+:........-:::::
-   :::::..%@@-.......-@@*.::::::::::::::    -%@@@@@@@%#*#@@@@@@#*:.:........-...::
-    .:::::.................::::::::::::..       ........ ...........::.-%%@%#%%..=#%%####.
+.:::...%#.........-@-...::::::::::::.  **======@@@@@+=====#@@@@+:........-:::::
+:::::..%@@-.......-@@*.::::::::::::::    -%@@@@@@@%#*#@@@@@@#*:.:........-...::
+.:::::.................::::::::::::..       ........ ...........::.-%%@%#%%..=#%%####.
      ::::::..................::::::=--+         ..:-=*#%*  .....==***:%%#%%%%#%%.%%#%%#####%
       :::.:......:............:.::@@%%%         ######%##     ........%##%%#%%#%%%%%#%%%%%%%%+
        ........................:#@@@@%#         +##%###%##      #%#%%%%%%%%###%%%%%%%%###%%###*
@@ -267,6 +303,10 @@ class MainWindow(QMainWindow):
         self._last_excel_report_path: str = ''
         self._urlscan_status: dict = {}
         self._gemini_status: dict = {}
+        self._learning_status: dict = {'status': '学習データ待ち'}
+        self._learning_minimum_per_class = DEFAULT_LIMITS.learning_minimum_per_class
+        self._learning_max_examples = DEFAULT_LIMITS.learning_max_examples
+        self._scan_workers = 4
         self.setWindowTitle('詐欺サイト自動検知システム — CYCOT サイバーパトロール')
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
@@ -343,7 +383,20 @@ class MainWindow(QMainWindow):
         self._gemini_input = ApiKeyInput('Gemini API キー', 'AIzaSy...', 'https://aistudio.google.com/app/apikey')
         api_layout.addWidget(self._urlscan_input)
         api_layout.addWidget(self._gemini_input)
-        save_btn = QPushButton('💾  キーを保存 (.env)')
+        self._supabase_url_input = QLineEdit()
+        self._supabase_url_input.setPlaceholderText('https://xxxxx.supabase.co')
+        self._supabase_url_input.setToolTip('Supabase Project URL（https://*.supabase.co）')
+        self._supabase_email_input = QLineEdit()
+        self._supabase_email_input.setPlaceholderText('Supabaseログインメール')
+        self._supabase_anon_input = ApiKeyInput('Supabase 匿名キー', 'sb_publishable_...')
+        self._supabase_password_input = ApiKeyInput('Supabase パスワード', 'OS資格情報へ暗号化保存')
+        api_layout.addWidget(QLabel('Supabase Project URL'))
+        api_layout.addWidget(self._supabase_url_input)
+        api_layout.addWidget(QLabel('Supabase ログインメール'))
+        api_layout.addWidget(self._supabase_email_input)
+        api_layout.addWidget(self._supabase_anon_input)
+        api_layout.addWidget(self._supabase_password_input)
+        save_btn = QPushButton('💾  認証情報を安全に保存')
         save_btn.setObjectName('btn_secondary')
         save_btn.clicked.connect(self._save_env)
         api_layout.addWidget(save_btn)
@@ -364,7 +417,7 @@ class MainWindow(QMainWindow):
         scan_layout.addWidget(max_scan_label, 1, 0)
         self._max_scan_spin = QSpinBox()
         self._max_scan_spin.setRange(1, 5000)
-        self._max_scan_spin.setValue(50)
+        self._max_scan_spin.setValue(DEFAULT_LIMITS.max_scan_count)
         self._max_scan_spin.setSuffix(' 件')
         self._max_scan_spin.setFixedHeight(38)
         self._max_scan_spin.setToolTip('1件以上のスキャン数を設定します')
@@ -404,6 +457,28 @@ class MainWindow(QMainWindow):
         output_row.addWidget(self._report_output_input, 1)
         output_row.addWidget(output_browse_btn)
         scan_layout.addLayout(output_row, 3, 1)
+        feature_label = QLabel('任意機能:')
+        feature_label.setObjectName('field_label')
+        feature_label.setToolTip('各項目へカーソルを合わせると、機能と注意点を確認できます')
+        scan_layout.addWidget(feature_label, 4, 0)
+        feature_row = QGridLayout()
+        self._ct_enabled_check = QCheckBox('CT監視')
+        self._urlscan_submit_check = QCheckBox('新規urlscan送信')
+        self._llm_enabled_check = QCheckBox('Gemini補助分析')
+        self._automatic_learning_check = QCheckBox('自動学習')
+        self._ct_enabled_check.setToolTip(OPTIONAL_FEATURE_TOOLTIPS['ct'])
+        self._urlscan_submit_check.setToolTip(OPTIONAL_FEATURE_TOOLTIPS['urlscan_submission'])
+        self._llm_enabled_check.setToolTip(OPTIONAL_FEATURE_TOOLTIPS['llm'])
+        self._automatic_learning_check.setToolTip(OPTIONAL_FEATURE_TOOLTIPS['automatic_learning'])
+        for index, checkbox in enumerate((
+            self._ct_enabled_check,
+            self._urlscan_submit_check,
+            self._llm_enabled_check,
+            self._automatic_learning_check,
+        )):
+            checkbox.setToolTipDuration(15000)
+            feature_row.addWidget(checkbox, index // 2, index % 2)
+        scan_layout.addLayout(feature_row, 4, 1)
         layout.addWidget(scan_group)
         self._btn_start = QPushButton('▶  監視開始')
         self._btn_start.setObjectName('btn_start')
@@ -433,7 +508,13 @@ class MainWindow(QMainWindow):
         footer.setWordWrap(True)
         footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(footer)
-        return sidebar
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(sidebar)
+        scroll.setMinimumWidth(220)
+        return scroll
 
     def _build_main_area(self) -> QWidget:
         area = QWidget()
@@ -445,10 +526,16 @@ class MainWindow(QMainWindow):
         self._stat_processed = StatCard('監視済ドメイン', '0', COLORS['text_secondary'])
         self._stat_detected = StatCard('フィルタ通過', '0', COLORS['accent_blue'])
         self._stat_scanned = StatCard('スキャン実行', '0', COLORS['accent_cyan'])
-        self._stat_scams = StatCard('詐欺判定', '0', COLORS['accent_red'])
+        self._stat_scams = StatCard('レビュー候補', '0', COLORS['accent_red'])
         for card in [self._stat_processed, self._stat_detected, self._stat_scanned, self._stat_scams]:
             stats_row.addWidget(card)
         layout.addLayout(stats_row)
+        self._operations_summary = QLabel('ソース別 －  |  重複率 0%  |  有用候補 0  |  滞留 0')
+        self._operations_summary.setStyleSheet(
+            f"color: {COLORS['text_secondary']}; background: {COLORS['bg_card']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 6px; padding: 6px 10px;"
+        )
+        layout.addWidget(self._operations_summary)
         api_row = QHBoxLayout()
         api_row.setSpacing(12)
         self._urlscan_usage = ApiUsageCard('URLSCAN.IO API 制限', COLORS['accent_blue'])
@@ -477,28 +564,79 @@ class MainWindow(QMainWindow):
         result_layout = QVBoxLayout(result_tab)
         result_layout.setContentsMargins(8, 8, 8, 8)
         table_bar = QHBoxLayout()
-        table_title = QLabel(f'🚨  詐欺サイト検出一覧')
+        table_title = QLabel('🚨  不審サイト・レビュー候補')
         table_title.setStyleSheet(f"color: {COLORS['accent_red']}; font-weight: bold; font-size: 14px;")
         self._result_count_label = QLabel('0 件')
         self._result_count_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         export_csv_btn = QPushButton('📥  CSVエクスポート')
         export_csv_btn.setObjectName('btn_secondary')
         export_csv_btn.clicked.connect(self._export_csv)
+        self._review_action = QComboBox()
+        for label, status in (
+            ('調査中', 'investigating'),
+            ('問題なし', 'no_issue'),
+            ('疑いが強い', 'strong_suspicion'),
+            ('判定不能', 'inconclusive'),
+            ('資料作成済み', 'report_prepared'),
+            ('対応確認済み', 'response_verified'),
+        ):
+            self._review_action.addItem(label, status)
+        review_btn = QPushButton('✓  状態を更新')
+        review_btn.setObjectName('btn_secondary')
+        review_btn.clicked.connect(self._apply_selected_review)
         table_bar.addWidget(table_title)
         table_bar.addWidget(self._result_count_label)
         table_bar.addStretch()
+        table_bar.addWidget(self._review_action)
+        table_bar.addWidget(review_btn)
         table_bar.addWidget(export_csv_btn)
+        filter_bar = QHBoxLayout()
+        filter_bar.addWidget(QLabel('絞り込み:'))
+        self._category_filter = QComboBox()
+        self._category_filter.addItems(['分類: すべて', 'phishing', 'fraudulent_ec', 'suspected_counterfeit'])
+        self._priority_filter = QComboBox()
+        self._priority_filter.addItems(['優先度: すべて', '通常', '要確認', '高', '緊急'])
+        self._review_filter = QComboBox()
+        self._review_filter.addItems([
+            'レビュー: すべて', '未レビュー', '調査中', '問題なし',
+            '疑いが強い', '判定不能', '資料作成済み', '対応確認済み'
+        ])
+        self._brand_filter = QLineEdit()
+        self._brand_filter.setPlaceholderText('ブランド検索')
+        self._brand_filter.setMaximumWidth(180)
+        self._source_filter = QComboBox()
+        self._source_filter.addItems(['出典: すべて', 'OpenPhish', 'CT', 'urlscan'])
+        self._date_filter = QLineEdit()
+        self._date_filter.setPlaceholderText('発見日 YYYY-MM-DD')
+        self._date_filter.setMaximumWidth(140)
+        for widget in (
+            self._category_filter, self._priority_filter,
+            self._review_filter, self._source_filter,
+        ):
+            widget.currentIndexChanged.connect(self._apply_result_filters)
+            filter_bar.addWidget(widget)
+        self._brand_filter.textChanged.connect(self._apply_result_filters)
+        self._date_filter.textChanged.connect(self._apply_result_filters)
+        filter_bar.addWidget(self._brand_filter)
+        filter_bar.addWidget(self._date_filter)
+        filter_bar.addStretch()
         self._result_table = QTableWidget()
-        self._result_table.setColumnCount(7)
-        self._result_table.setHorizontalHeaderLabels(['検出日時', 'ドメイン', 'ブランド', '分類', 'URL', '特徴', 'urlscan レポート'])
+        self._result_table.setColumnCount(13)
+        self._result_table.setHorizontalHeaderLabels([
+            '初回発見', '最終観測', 'ドメイン', 'ブランド', '分類', '優先度',
+            '情報充足度', '出典', 'レビュー状態', 'URL', '根拠', 'urlscan レポート', '候補ID'
+        ])
         self._result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self._result_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self._result_table.horizontalHeader().setSectionResizeMode(10, QHeaderView.ResizeMode.Stretch)
+        self._result_table.setColumnHidden(12, True)
         self._result_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._result_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._result_table.verticalHeader().setVisible(False)
         self._result_table.setShowGrid(False)
         self._result_table.setAlternatingRowColors(False)
+        self._result_table.cellDoubleClicked.connect(self._show_candidate_details)
         result_layout.addLayout(table_bar)
+        result_layout.addLayout(filter_bar)
         result_layout.addWidget(self._result_table)
         tabs.addTab(result_tab, '🚨  検出一覧 (0)')
         self._tabs = tabs
@@ -515,6 +653,8 @@ class MainWindow(QMainWindow):
         saved_keys = load_all_keys()
         urlscan_val = saved_keys.get(URLSCAN_KEY_NAME, "")
         gemini_val = saved_keys.get(GEMINI_KEY_NAME, "")
+        supabase_anon_val = saved_keys.get(SUPABASE_ANON_KEY_NAME, "")
+        supabase_password_val = saved_keys.get(SUPABASE_PASSWORD_NAME, "")
 
         env_path = Path(__file__).parent.parent / '.env'
         if not env_path.exists():
@@ -534,31 +674,98 @@ class MainWindow(QMainWindow):
 
         self._urlscan_input.set_value(urlscan_val or env_values.get('URLSCAN_API_KEY', ''))
         self._gemini_input.set_value(gemini_val or env_values.get('GEMINI_API_KEY', ''))
-        self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', 'テンプレート/CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx'))
-        self._report_output_input.setText(env_values.get('REPORT_OUTPUT_DIR', '検出結果'))
+        self._supabase_url_input.setText(env_values.get('SUPABASE_URL', ''))
+        self._supabase_email_input.setText(env_values.get('SUPABASE_EMAIL', ''))
+        self._supabase_anon_input.set_value(supabase_anon_val or env_values.get('SUPABASE_ANON_KEY', ''))
+        self._supabase_password_input.set_value(supabase_password_val or env_values.get('SUPABASE_PASSWORD', ''))
+        self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', DEFAULT_TEMPLATE_PATH))
+        self._report_output_input.setText(env_values.get('REPORT_OUTPUT_DIR', DEFAULT_REPORT_OUTPUT_DIR))
         self._reporter_name_input.setText(env_values.get('REPORTER_NAME', ''))
-        max_scan = env_values.get('MAX_SCAN_COUNT', '50')
+        max_scan = env_values.get('MAX_SCAN_COUNT', str(DEFAULT_LIMITS.max_scan_count))
         try:
             self._max_scan_spin.setValue(int(max_scan))
         except ValueError:
             pass
+        try:
+            self._scan_workers = max(1, min(int(env_values.get('SCAN_WORKERS', str(DEFAULT_LIMITS.scan_workers))), 8))
+        except ValueError:
+            self._scan_workers = DEFAULT_LIMITS.scan_workers
+        def checked(name: str, default: bool) -> bool:
+            return env_values.get(name, str(default)).strip().casefold() in {
+                '1', 'true', 'yes', 'on', 'enabled'
+            }
+        self._ct_enabled_check.setChecked(checked('CT_ENABLED', DEFAULT_FEATURES.ct_enabled))
+        self._urlscan_submit_check.setChecked(checked(
+            'URLSCAN_SUBMISSION_ENABLED', DEFAULT_FEATURES.urlscan_submission_enabled
+        ))
+        self._llm_enabled_check.setChecked(checked('LLM_ENABLED', DEFAULT_FEATURES.llm_enabled))
+        self._automatic_learning_check.setChecked(checked(
+            'AUTOMATIC_LEARNING_ENABLED', DEFAULT_FEATURES.automatic_learning_enabled
+        ))
+        try:
+            self._learning_minimum_per_class = max(
+                5,
+                int(env_values.get(
+                    'LEARNING_MINIMUM_PER_CLASS',
+                    str(DEFAULT_LIMITS.learning_minimum_per_class),
+                )),
+            )
+        except ValueError:
+            self._learning_minimum_per_class = DEFAULT_LIMITS.learning_minimum_per_class
+        try:
+            self._learning_max_examples = max(
+                100,
+                min(
+                    int(env_values.get(
+                        'LEARNING_MAX_EXAMPLES',
+                        str(DEFAULT_LIMITS.learning_max_examples),
+                    )),
+                    100_000,
+                ),
+            )
+        except ValueError:
+            self._learning_max_examples = DEFAULT_LIMITS.learning_max_examples
 
     def _save_env(self) -> None:
         u_key = self._urlscan_input.value
         g_key = self._gemini_input.value
+        s_key = self._supabase_anon_input.value
+        s_password = self._supabase_password_input.value
 
-        if u_key:
-            save_api_key(URLSCAN_KEY_NAME, u_key)
-        if g_key:
-            save_api_key(GEMINI_KEY_NAME, g_key)
+        saved = [
+            save_api_key(URLSCAN_KEY_NAME, u_key),
+            save_api_key(GEMINI_KEY_NAME, g_key),
+            save_api_key(SUPABASE_ANON_KEY_NAME, s_key),
+            save_api_key(SUPABASE_PASSWORD_NAME, s_password),
+        ]
+        if not all(saved):
+            QMessageBox.critical(self, '保存エラー', 'OSの資格情報マネージャーへ保存できませんでした。秘密情報は平文保存していません。')
+            return
 
         env_path = Path(__file__).parent.parent / '.env'
-        content = f'URLSCAN_API_KEY={u_key}\nGEMINI_API_KEY={g_key}\nREPORTER_NAME={self._reporter_name_input.text().strip()}\nEXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\nREPORT_OUTPUT_DIR={self._report_output_input.text().strip()}\nMAX_SCAN_COUNT={self._max_scan_spin.value()}\nQUEUE_SIZE=500\n'
+        content = (
+            'URLSCAN_API_KEY=\nGEMINI_API_KEY=\nSUPABASE_ANON_KEY=\nSUPABASE_PASSWORD=\n'
+            f'SUPABASE_URL={self._supabase_url_input.text().strip()}\n'
+            f'SUPABASE_EMAIL={self._supabase_email_input.text().strip()}\n'
+            f'REPORTER_NAME={self._reporter_name_input.text().strip()}\n'
+            f'EXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\n'
+            f'REPORT_OUTPUT_DIR={self._report_output_input.text().strip()}\n'
+            f'MAX_SCAN_COUNT={self._max_scan_spin.value()}\n'
+            f'QUEUE_SIZE={DEFAULT_LIMITS.queue_size}\nSCAN_WORKERS={self._scan_workers}\n'
+            f'CT_ENABLED={str(self._ct_enabled_check.isChecked()).lower()}\n'
+            'PHISHING_FEED_ENABLED=true\n'
+            f'URLSCAN_SUBMISSION_ENABLED={str(self._urlscan_submit_check.isChecked()).lower()}\n'
+            f'LLM_ENABLED={str(self._llm_enabled_check.isChecked()).lower()}\n'
+            f'AUTOMATIC_LEARNING_ENABLED={str(self._automatic_learning_check.isChecked()).lower()}\n'
+            f'LEARNING_MINIMUM_PER_CLASS={self._learning_minimum_per_class}\n'
+            f'LEARNING_MAX_EXAMPLES={self._learning_max_examples}\n'
+            'SIMILARITY_ENABLED=false\nAUTOMATIC_REPORTING_ENABLED=false\n'
+        )
         try:
             with open(env_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            self._log_view.append_log('INFO', '🔒 APIキーをセキュアストレージ (OS資格情報) および .env に保存しました')
-            QMessageBox.information(self, '保存完了', 'APIキーをOSの安全な資格情報マネージャーに暗号化保存しました。\n次回から自動で読み込まれます。')
+            self._log_view.append_log('INFO', '🔒 秘密情報をOS資格情報へ暗号化保存しました（.envへは保存していません）')
+            QMessageBox.information(self, '保存完了', 'APIキーとパスワードをOSの資格情報マネージャーに保存しました。')
         except Exception as e:
             QMessageBox.critical(self, '保存エラー', str(e))
 
@@ -582,8 +789,17 @@ class MainWindow(QMainWindow):
         if not self._urlscan_input.value:
             QMessageBox.warning(self, '入力エラー', 'urlscan.io APIキーを入力してください。\n\n取得先: https://urlscan.io/user/signup')
             return False
-        if not self._gemini_input.value:
+        if self._llm_enabled_check.isChecked() and not self._gemini_input.value:
             QMessageBox.warning(self, '入力エラー', 'Gemini APIキーを入力してください。\n\n取得先: https://aistudio.google.com/app/apikey')
+            return False
+        if not self._supabase_url_input.text().strip():
+            QMessageBox.warning(self, '入力エラー', 'Supabase Project URLを入力してください。')
+            return False
+        if not self._supabase_email_input.text().strip():
+            QMessageBox.warning(self, '入力エラー', 'Supabaseログインメールを入力してください。')
+            return False
+        if not self._supabase_anon_input.value or not self._supabase_password_input.value:
+            QMessageBox.warning(self, '入力エラー', 'Supabase匿名キーとログインパスワードを入力してください。')
             return False
         if not self._excel_path_input.text().strip():
             QMessageBox.warning(self, '入力エラー', 'Excelテンプレートを選択してください。')
@@ -601,6 +817,8 @@ class MainWindow(QMainWindow):
         self._btn_save_report.setEnabled(False)
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
+        save_api_key(SUPABASE_ANON_KEY_NAME, self._supabase_anon_input.value)
+        save_api_key(SUPABASE_PASSWORD_NAME, self._supabase_password_input.value)
 
         self._scan_banner.show()
         self._scan_banner.raise_()
@@ -613,10 +831,17 @@ class MainWindow(QMainWindow):
         self._worker = PipelineWorker(
             urlscan_api_key=self._urlscan_input.value,
             gemini_api_key=self._gemini_input.value,
-            excel_template_path=self._excel_path_input.text(),
-            report_output_dir=self._report_output_input.text().strip(),
             max_scan_count=self._max_scan_spin.value(),
-            reporter_name=self._reporter_name_input.text().strip(),
+            supabase_url=self._supabase_url_input.text().strip(),
+            supabase_anon_key=self._supabase_anon_input.value,
+            supabase_email=self._supabase_email_input.text().strip(),
+            supabase_password=self._supabase_password_input.value,
+            scan_workers=self._scan_workers,
+            urlscan_submission_enabled=self._urlscan_submit_check.isChecked(),
+            ct_enabled=self._ct_enabled_check.isChecked(),
+            phishing_feed_enabled=True,
+            llm_enabled=self._llm_enabled_check.isChecked(),
+            automatic_learning_enabled=self._automatic_learning_check.isChecked(),
         )
 
         self._worker.log_emitted.connect(self._on_worker_log)
@@ -657,19 +882,264 @@ class MainWindow(QMainWindow):
             if color:
                 item.setForeground(QColor(color))
             return item
-        self._result_table.setItem(row, 0, make_item(data.get('detected_at', '')))
-        self._result_table.setItem(row, 1, make_item(data.get('domain', ''), COLORS['accent_orange']))
-        self._result_table.setItem(row, 2, make_item(data.get('target_brand', ''), COLORS['accent_red']))
-        self._result_table.setItem(row, 3, make_item(data.get('category', ''), COLORS['accent_cyan']))
+        self._result_table.setItem(row, 0, make_item(data.get('first_seen_at', data.get('detected_at', ''))))
+        self._result_table.setItem(row, 1, make_item(data.get('last_observed_at', '') or '未観測'))
+        self._result_table.setItem(row, 2, make_item(data.get('domain', ''), COLORS['accent_orange']))
+        self._result_table.setItem(row, 3, make_item(data.get('target_brand', ''), COLORS['accent_red']))
+        self._result_table.setItem(row, 4, make_item(data.get('category', ''), COLORS['accent_cyan']))
+        risk_text = f"{data.get('priority_label', '通常')} ({data.get('risk_score', 0)}点)"
+        learning_probability = data.get('learning_probability')
+        if isinstance(learning_probability, (int, float)):
+            risk_text += f" / 学習 {learning_probability:.0%}"
+        risk_color = COLORS['accent_red'] if data.get('priority') in ('urgent', 'high') else COLORS['accent_orange']
+        self._result_table.setItem(row, 5, make_item(risk_text, risk_color))
+        self._result_table.setItem(row, 6, make_item(data.get('completeness_label', '情報不足')))
+        self._result_table.setItem(row, 7, make_item(data.get('source', '')))
+        self._result_table.setItem(row, 8, make_item(data.get('review_status_label', '未レビュー'), COLORS['accent_orange']))
         url_item = make_item(data.get('url', ''), COLORS['text_secondary'])
         url_item.setToolTip('URLはセキュリティのためリンク化されていません')
-        self._result_table.setItem(row, 4, url_item)
-        self._result_table.setItem(row, 5, make_item(data.get('features', '')))
-        self._result_table.setItem(row, 6, make_item(data.get('scan_url', ''), COLORS['accent_blue']))
+        self._result_table.setItem(row, 9, url_item)
+        evidence = data.get('features', '')
+        if data.get('missing_evidence'):
+            evidence = f"{evidence}; 不足={data['missing_evidence']}"
+        self._result_table.setItem(row, 10, make_item(evidence))
+        self._result_table.setItem(row, 11, make_item(data.get('scan_url', ''), COLORS['accent_blue']))
+        self._result_table.setItem(row, 12, make_item(data.get('candidate_id', '')))
         count = self._result_table.rowCount()
         self._tabs.setTabText(1, f'🚨  検出一覧 ({count})')
         self._result_count_label.setText(f'{count} 件')
         self._tabs.setCurrentIndex(1)
+        self._apply_result_filters()
+
+    def _set_review_status(self, status: str, label: str) -> None:
+        rows = sorted({index.row() for index in self._result_table.selectedIndexes()})
+        if not rows:
+            QMessageBox.information(self, 'レビュー', '判定する行を選択してください。')
+            return
+        reason, accepted = QInputDialog.getMultiLineText(
+            self,
+            'レビュー理由',
+            f'「{label}」と判断した理由（必須）:',
+        )
+        if not accepted:
+            return
+        reason = reason.strip()
+        if not reason:
+            QMessageBox.warning(self, '入力エラー', 'レビュー理由は必須です。')
+            return
+        repository = None
+        reviewed_rows: list[int] = []
+        review_failures: list[str] = []
+        try:
+            from supabase_repository import SupabaseRepository
+            repository = SupabaseRepository(
+                self._supabase_url_input.text().strip(),
+                self._supabase_anon_input.value,
+                self._supabase_email_input.text().strip(),
+                self._supabase_password_input.value,
+                allowed_custom_host=os.getenv('SUPABASE_ALLOWED_HOST', ''),
+            )
+            repository.connect()
+            for row in rows:
+                if row >= len(self._scam_records):
+                    continue
+                record = self._scam_records[row]
+                candidate_id = record.get('candidate_id', '')
+                if not candidate_id:
+                    review_failures.append(f'{row + 1}行目: 候補IDなし')
+                    continue
+                try:
+                    record['review_version'] = repository.submit_review(
+                        candidate_id,
+                        status,
+                        reason,
+                        evidence_refs=[record.get('scan_url', '')],
+                        expected_version=int(record.get('review_version', 0)),
+                    )
+                    reviewed_rows.append(row)
+                except Exception as row_exc:
+                    review_failures.append(f'{row + 1}行目: {row_exc}')
+            if not reviewed_rows:
+                raise RuntimeError('\n'.join(review_failures) or '保存対象がありません')
+            if self._automatic_learning_check.isChecked():
+                try:
+                    self._run_automatic_learning(repository, reviewed_rows, status)
+                except Exception as learning_exc:
+                    self._learning_status = {'status': '学習DB更新待ち'}
+                    self._log_view.append_log(
+                        'WARNING',
+                        '⚠️ レビューは保存済みですが自動学習は見送りました。'
+                        '202609030002_online_learning.sql の適用を確認してください: '
+                        f'{learning_exc}',
+                    )
+        except Exception as exc:
+            QMessageBox.critical(
+                self, 'レビュー保存エラー',
+                f'Supabaseへレビュー履歴を保存できませんでした。\n'
+                f'202609030001_spec_v11_history.sql の適用を確認してください。\n\n{exc}'
+            )
+            return
+        finally:
+            if repository is not None:
+                repository.close()
+        reviewed_at = datetime.now().astimezone().isoformat(timespec='seconds')
+        for row in reviewed_rows:
+            if row >= len(self._scam_records):
+                continue
+            record = self._scam_records[row]
+            record['review_status'] = status
+            record['review_status_label'] = label
+            record['review_reason'] = reason
+            record['reviewer'] = self._reporter_name_input.text().strip()
+            record['reviewed_at'] = reviewed_at
+            item = self._result_table.item(row, 8)
+            if item:
+                item.setText(label)
+                item.setForeground(QColor(
+                    COLORS['accent_red'] if status == 'strong_suspicion'
+                    else COLORS['accent_green']
+                ))
+        has_exportable = any(
+            record.get('review_status') in ('strong_suspicion', 'report_prepared')
+            for record in self._scam_records
+        )
+        self._last_excel_report_path = ''
+        self._btn_save_report.setEnabled(has_exportable)
+        self._log_view.append_log(
+            'INFO', f'👤 人手レビューを記録: {label} ({len(reviewed_rows)}件)'
+        )
+        if review_failures:
+            QMessageBox.warning(
+                self,
+                '一部保存エラー',
+                f'{len(reviewed_rows)}件は保存しましたが、{len(review_failures)}件は保存できませんでした。\n\n'
+                + '\n'.join(review_failures[:5]),
+            )
+        self._apply_result_filters()
+
+    def _run_automatic_learning(self, repository, rows: list[int], status: str) -> None:
+        if status not in ('no_issue', 'strong_suspicion', 'report_prepared', 'response_verified'):
+            self._learning_status = {'status': '確定ラベル待ち'}
+            return
+
+        recorded = 0
+        for row in rows:
+            if row >= len(self._scam_records):
+                continue
+            record = self._scam_records[row]
+            features = record.get('learning_features')
+            if not isinstance(features, dict) or not features:
+                continue
+            if repository.record_learning_example(
+                record.get('candidate_id', ''),
+                int(record.get('review_version', 0)),
+                record.get('category', ''),
+                features,
+            ):
+                recorded += 1
+        if not recorded:
+            self._learning_status = {'status': '特徴量データ待ち'}
+            return
+
+        examples = repository.get_learning_examples(self._learning_max_examples)
+        current_model = LearningModel.from_dict(repository.get_active_learning_model())
+        result = train_challenger(
+            examples,
+            current_model,
+            minimum_per_class=self._learning_minimum_per_class,
+        )
+        positives = int(result.metrics.get('positive', 0) or 0)
+        negatives = int(result.metrics.get('negative', 0) or 0)
+        if not result.promoted or result.model is None:
+            if result.model is None:
+                status_text = f'例待ち +{positives}/-{negatives}'
+            else:
+                challenger_f1 = float(result.metrics.get('challenger_f1', 0) or 0)
+                status_text = f'評価保留 F1 {challenger_f1:.2f}'
+            self._learning_status = {
+                'status': status_text,
+                'model_version': current_model.model_version if current_model else '',
+            }
+            self._log_view.append_log('INFO', f'🧠 自動学習: {result.reason}')
+            return
+
+        version = repository.publish_learning_model(result.model.as_dict(), result.metrics)
+        self._learning_status = {
+            'status': f'更新済み ({len(examples)}件)',
+            'model_version': version,
+        }
+        precision = float(result.metrics.get('challenger_precision', 0) or 0)
+        recall = float(result.metrics.get('challenger_recall', 0) or 0)
+        self._log_view.append_log(
+            'INFO',
+            f'🧠 新しい学習モデルを採用: {version} '
+            f'(適合率 {precision:.1%} / 再現率 {recall:.1%})。次回監視から使用します',
+        )
+
+    def _apply_selected_review(self) -> None:
+        self._set_review_status(
+            str(self._review_action.currentData()),
+            self._review_action.currentText(),
+        )
+
+    def _apply_result_filters(self, *_args) -> None:
+        category = self._category_filter.currentText()
+        priority = self._priority_filter.currentText()
+        review = self._review_filter.currentText()
+        source = self._source_filter.currentText()
+        brand = self._brand_filter.text().strip().casefold()
+        discovered_date = self._date_filter.text().strip()
+        for row, record in enumerate(self._scam_records):
+            visible = True
+            if self._category_filter.currentIndex() > 0:
+                visible = visible and record.get('category') == category
+            if self._priority_filter.currentIndex() > 0:
+                visible = visible and record.get('priority_label') == priority
+            if self._review_filter.currentIndex() > 0:
+                visible = visible and record.get('review_status_label') == review
+            if self._source_filter.currentIndex() > 0:
+                visible = visible and record.get('source') == source
+            if brand:
+                visible = visible and brand in str(record.get('target_brand', '')).casefold()
+            if discovered_date:
+                visible = visible and str(record.get('first_seen_at', '')).startswith(discovered_date)
+            self._result_table.setRowHidden(row, not visible)
+
+    def _show_candidate_details(self, row: int, _column: int) -> None:
+        if row >= len(self._scam_records):
+            return
+        record = self._scam_records[row]
+        learning_probability = record.get('learning_probability')
+        learning_probability_text = (
+            f'{learning_probability:.1%}'
+            if isinstance(learning_probability, (int, float)) else 'なし'
+        )
+        details = (
+            f"候補ID: {record.get('candidate_id', '')}\n"
+            f"分類: {record.get('category', '')}\n"
+            f"優先度: {record.get('priority_label', '')} ({record.get('risk_score', 0)}点)\n"
+            f"学習モデル: {record.get('learning_model_version', '') or '未使用'}\n"
+            f"学習予測: {learning_probability_text}\n"
+            f"情報充足度: {record.get('completeness_label', '')}\n"
+            f"不足情報: {record.get('missing_evidence', '') or 'なし'}\n"
+            f"出典: {record.get('source', '')}\n"
+            f"初回発見: {record.get('first_seen_at', '')}\n"
+            f"最終観測: {record.get('last_observed_at', '') or '未観測'}\n"
+            f"レビュー: {record.get('review_status_label', '未レビュー')}\n"
+            f"レビュー理由: {record.get('review_reason', '')}\n"
+            f"適用ルール: {record.get('rules', '')}\n"
+            f"DNS: {record.get('dns_status', '')} {record.get('dns_addresses', '')}\n"
+            f"RDAP: {record.get('rdap_status', '')} 登録経過日数={record.get('domain_age_days')}\n"
+            f"根拠: {record.get('features', '')}\n"
+            f"保存画像参照: {record.get('screenshot_url', '') or '取得なし'}\n"
+            f"urlscan参照: {record.get('scan_url', '') or '取得なし'}"
+        )
+        box = QMessageBox(self)
+        box.setWindowTitle('候補詳細（安全なテキスト表示）')
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setText('危険なHTML/JavaScriptは表示・実行しません。')
+        box.setDetailedText(details)
+        box.exec()
 
     @pyqtSlot(dict)
     def _on_stats_updated(self, stats: dict) -> None:
@@ -685,6 +1155,23 @@ class MainWindow(QMainWindow):
             self._urlscan_status = stats['urlscan'] or {}
         if 'gemini' in stats:
             self._gemini_status = stats['gemini'] or {}
+        if 'learning' in stats:
+            self._learning_status = stats['learning'] or {'status': '停止'}
+        source_counts = stats.get('source_counts') or {}
+        source_text = ', '.join(f'{key} {value}' for key, value in sorted(source_counts.items())) or '－'
+        accepted = int(stats.get('accepted', 0) or 0)
+        duplicates = int(stats.get('duplicates', 0) or 0)
+        duplicate_rate = (duplicates / (accepted + duplicates) * 100) if accepted + duplicates else 0
+        useful = sum(
+            record.get('review_status') in ('strong_suspicion', 'report_prepared')
+            for record in self._scam_records
+        )
+        learning_text = str(self._learning_status.get('status') or '待機中')
+        self._operations_summary.setText(
+            f"ソース別 {source_text}  |  重複率 {duplicate_rate:.1f}%  |  "
+            f"確認済み有用候補 {useful}  |  滞留 {int(stats.get('backlog', 0) or 0)}  |  "
+            f"学習 {learning_text}"
+        )
         self._refresh_api_usage()
         scanned = stats.get('scanned', 0)
         max_scan = self._max_scan_spin.value()
@@ -696,7 +1183,11 @@ class MainWindow(QMainWindow):
         now = time.time()
         urlscan = self._urlscan_status
         cooldown = max(0, int(float(urlscan.get('cooldown_until') or 0) - now))
-        if cooldown:
+        if urlscan.get('source_disabled_reason'):
+            self._urlscan_usage.set_usage(
+                'ソース停止', str(urlscan['source_disabled_reason']), warning=True
+            )
+        elif cooldown:
             self._urlscan_usage.set_usage(
                 f'制限待機 {cooldown}秒', 'HTTP 429・リセット待ち', warning=True
             )
@@ -704,6 +1195,9 @@ class MainWindow(QMainWindow):
             limit = urlscan.get('limit')
             remaining = urlscan.get('remaining')
             submissions = int(urlscan.get('successful_submissions') or 0)
+            reused = int(urlscan.get('reused_scans') or 0)
+            searches = int(urlscan.get('search_requests') or 0)
+            submission_note = '' if urlscan.get('submission_enabled') else '・新規送信OFF'
             if isinstance(limit, int) and isinstance(remaining, int) and limit > 0:
                 reset_at = float(urlscan.get('reset_at_epoch') or 0)
                 reset_after = max(0, int(reset_at - now)) if reset_at else None
@@ -721,13 +1215,14 @@ class MainWindow(QMainWindow):
                     percent = round((limit - remaining) / limit * 100)
                     self._urlscan_usage.set_usage(
                         f'残り {remaining:,} / {limit:,}',
-                        f'{action}・{window}枠・{reset_text}・成功送信 {submissions:,}件',
+                        f'{action}・{window}枠・{reset_text}・新規 {submissions:,}件・再利用 {reused:,}件・検索 {searches:,}回{submission_note}',
                         percent,
                         remaining / limit <= 0.1,
                     )
             else:
                 self._urlscan_usage.set_usage(
-                    f'成功送信 {submissions:,}件', '制限値は最初のAPI応答後に表示'
+                    f'新規 {submissions:,}件 / 再利用 {reused:,}件',
+                    f'既存検索 {searches:,}回・制限値は最初のAPI応答後に表示{submission_note}'
                 )
 
         gemini = self._gemini_status
@@ -743,9 +1238,11 @@ class MainWindow(QMainWindow):
             total_tokens = int(gemini.get('total_tokens') or 0)
             prompt_tokens = int(gemini.get('prompt_tokens') or 0)
             output_tokens = int(gemini.get('output_tokens') or 0)
+            parse_retries = int(gemini.get('parse_retries') or 0)
+            recovery_text = f'・出力再生成 {parse_retries:,}回' if parse_retries else ''
             self._gemini_usage.set_usage(
                 f'{requests_used:,}回 / {total_tokens:,} tokens',
-                f"{gemini.get('model') or 'Gemini'}・入力 {prompt_tokens:,}・出力 {output_tokens:,}・上限はAI Studio",
+                f"{gemini.get('model') or 'Gemini'}・入力 {prompt_tokens:,}・出力 {output_tokens:,}{recovery_text}・上限はAI Studio",
             )
 
     @pyqtSlot(str)
@@ -763,7 +1260,16 @@ class MainWindow(QMainWindow):
             self._log_view.append_log('INFO', msg)
             QMessageBox.information(self, '検知完了', f'処理が完了しました。\n\n📄 Excel保存先:\n{saved_path}')
         else:
-            self._log_view.append_log('INFO', 'ℹ️  詐欺判定されたサイトはありませんでした')
+            if self._scam_records:
+                self._log_view.append_log(
+                    'INFO', 'ℹ️  収集完了。候補を人手レビュー後にレポート出力できます'
+                )
+                QMessageBox.information(
+                    self, '収集完了',
+                    '処理が完了しました。\n\n検出一覧で候補を選び、レビュー状態を確定してください。'
+                )
+            else:
+                self._log_view.append_log('INFO', 'ℹ️  レビュー候補はありませんでした')
         self._worker = None
 
     @pyqtSlot(str)
@@ -782,9 +1288,37 @@ class MainWindow(QMainWindow):
         self._log_view.clear()
 
     def _save_excel_report(self) -> None:
-        if not self._last_excel_report_path or not Path(self._last_excel_report_path).exists():
-            QMessageBox.information(self, '情報', '保存できるExcelレポートがまだありません。')
+        exportable = [
+            record for record in self._scam_records
+            if record.get('review_status') in ('strong_suspicion', 'report_prepared')
+        ]
+        if not exportable:
+            QMessageBox.information(self, '情報', '「疑いが強い」と人手確認された候補がありません。')
             return
+        if not self._last_excel_report_path or not Path(self._last_excel_report_path).exists():
+            try:
+                from reporter import ExcelReporter
+                reporter = ExcelReporter(
+                    self._excel_path_input.text(),
+                    self._reporter_name_input.text().strip(),
+                    self._report_output_input.text().strip(),
+                )
+                for record in exportable:
+                    review_note = (
+                        f"{record.get('features', '')}; 人手レビュー={record.get('review_reason', '')}; "
+                        f"ルール={record.get('rules', '')}; 情報充足度={record.get('completeness_label', '')}"
+                    )
+                    reporter.append_record(
+                        url=record.get('url', ''),
+                        target_brand=record.get('target_brand', ''),
+                        features=review_note,
+                        detected_at=record.get('detected_at', ''),
+                        category=record.get('category', ''),
+                    )
+                self._last_excel_report_path = reporter.save()
+            except Exception as exc:
+                QMessageBox.critical(self, '保存エラー', str(exc))
+                return
         source = Path(self._last_excel_report_path)
         path, _ = QFileDialog.getSaveFileName(self, 'Excelレポートを保存', source.name, 'Excel Files (*.xlsx)')
         if not path:
@@ -793,14 +1327,19 @@ class MainWindow(QMainWindow):
             path += '.xlsx'
         try:
             shutil.copy2(source, path)
+            self._write_evidence_manifest(Path(path), exportable)
             self._log_view.append_log('INFO', f'📊 Excelレポート保存完了: {path}')
             QMessageBox.information(self, '保存完了', f'Excelレポートを保存しました:\n{path}')
         except Exception as e:
             QMessageBox.critical(self, '保存エラー', str(e))
 
     def _export_csv(self) -> None:
-        if not self._scam_records:
-            QMessageBox.information(self, '情報', 'エクスポートするデータがありません。')
+        records = [
+            record for record in self._scam_records
+            if record.get('review_status') in ('strong_suspicion', 'report_prepared')
+        ]
+        if not records:
+            QMessageBox.information(self, '情報', '人手レビュー済みの出力対象がありません。')
             return
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         default_name = f'scam_report_{timestamp}.csv'
@@ -809,13 +1348,60 @@ class MainWindow(QMainWindow):
             return
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
-                writer = csv.DictWriter(f, fieldnames=['detected_at', 'domain', 'target_brand', 'category', 'url', 'features', 'ip_address', 'scan_url'])
+                fieldnames = [
+                    'detected_at', 'domain', 'target_brand', 'category',
+                    'priority', 'risk_score', 'completeness', 'review_status',
+                    'review_reason', 'reviewer', 'reviewed_at', 'url', 'features',
+                    'rules', 'missing_evidence', 'learning_probability',
+                    'learning_model_version', 'ip_address', 'scan_url'
+                ]
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
                 writer.writeheader()
-                writer.writerows(self._scam_records)
+                for record in records:
+                    writer.writerow({
+                        key: self._neutralize_csv_formula(record.get(key, ''))
+                        for key in fieldnames
+                    })
+            self._write_evidence_manifest(Path(path), records)
             self._log_view.append_log('INFO', f'📥 CSV エクスポート完了: {path}')
             QMessageBox.information(self, 'エクスポート完了', f'保存しました:\n{path}')
         except Exception as e:
             QMessageBox.critical(self, '保存エラー', str(e))
+
+    @staticmethod
+    def _neutralize_csv_formula(value):
+        text = str(value)
+        if text.lstrip().startswith(('=', '+', '-', '@')):
+            return "'" + text
+        return text
+
+    @staticmethod
+    def _write_evidence_manifest(output_path: Path, records: list[dict]) -> Path:
+        digest = hashlib.sha256(output_path.read_bytes()).hexdigest()
+        manifest = {
+            'schema_version': 'evidence-manifest-1',
+            'created_at': datetime.now().astimezone().isoformat(timespec='seconds'),
+            'notice': 'SHA-256は改変検知用であり、取得時刻の法的証明ではありません。',
+            'file': {'name': output_path.name, 'sha256': digest},
+            'reviewed_candidates': [
+                {
+                    'candidate_id': record.get('candidate_id', ''),
+                    'review_status': record.get('review_status', ''),
+                    'reviewed_at': record.get('reviewed_at', ''),
+                    'reviewer': record.get('reviewer', ''),
+                    'source': record.get('source', ''),
+                    'rules': record.get('rules', ''),
+                    'learning_probability': record.get('learning_probability'),
+                    'learning_model_version': record.get('learning_model_version', ''),
+                }
+                for record in records
+            ],
+        }
+        manifest_path = output_path.with_suffix(output_path.suffix + '.manifest.json')
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8'
+        )
+        return manifest_path
 
     def _update_status(self, text: str, state: str) -> None:
         self._status_text.setText(f'状態: {text}')

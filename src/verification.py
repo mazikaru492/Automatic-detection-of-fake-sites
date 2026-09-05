@@ -9,6 +9,7 @@ from monitor import BRAND_ALIASES, SAFE_DOMAINS, TLD_EXTRACT
 MIN_AI_CONFIDENCE = 90
 MIN_COMMERCE_CONFIDENCE = 95
 MIN_URLSCAN_SCORE = 70
+MIN_VOCABULARY_REVIEW_SCORE = 45
 MALICIOUS_CATEGORIES = {'phishing', 'malware'}
 
 
@@ -18,6 +19,12 @@ class ReportDecision:
     reason: str
     evidence_summary: str = ''
     report_category: str = ''
+
+
+@dataclass(frozen=True)
+class AnalysisPrecheck:
+    proceed: bool
+    reason: str
 
 
 def _registered_domain(value: str) -> str:
@@ -56,6 +63,46 @@ def _base_evidence(analysis, details: str) -> str:
     return f"確認根拠: AI確信度={analysis.confidence}%; {details}; {features}"[:500]
 
 
+def should_analyze(domain_info: dict, scan_result: dict) -> AnalysisPrecheck:
+    """Skip Gemini when deterministic evidence cannot satisfy the final gate."""
+    if scan_result.get('fetch_status') == 'not_observed':
+        return AnalysisPrecheck(
+            False,
+            f"ページ未観測 ({scan_result.get('missing_reason') or 'evidence_missing'})",
+        )
+    kind = str(domain_info.get('candidate_kind', '') or '')
+    signals = scan_result.get('page_signals') or {}
+    has_transaction = bool(signals.get('transaction'))
+    vocabulary_score = int(scan_result.get('vocabulary_score', 0) or 0)
+    vocabulary_categories = set(scan_result.get('vocabulary_categories') or [])
+    if kind in ('brand_impersonation', 'known_phishing'):
+        if (
+            domain_info.get('known_phishing') is True
+            or scan_result.get('urlscan_malicious') is True
+            or bool(signals.get('credential'))
+        ):
+            return AnalysisPrecheck(True, 'フィッシング確認に必要な独立シグナルあり')
+        return AnalysisPrecheck(False, 'ログイン・認証入力または外部脅威情報がありません')
+    if kind == 'suspicious_shop':
+        legacy_fraud = len(signals.get('fraud') or []) >= 2
+        vocabulary_fraud = (
+            vocabulary_score >= MIN_VOCABULARY_REVIEW_SCORE
+            and len(vocabulary_categories) >= 2
+        )
+        if has_transaction and (legacy_fraud or vocabulary_fraud):
+            return AnalysisPrecheck(True, '購入導線と複数の詐欺通販シグナルあり')
+        return AnalysisPrecheck(False, '購入導線と詐欺通販の赤旗2種類が揃っていません')
+    if kind == 'counterfeit_goods':
+        if has_transaction and bool(signals.get('counterfeit')):
+            return AnalysisPrecheck(True, '購入導線とコピー商品シグナルあり')
+        return AnalysisPrecheck(False, '購入導線またはコピー商品の具体的表示がありません')
+    if kind == 'suspected_illegal_goods':
+        if has_transaction and bool(signals.get('illegal_goods')):
+            return AnalysisPrecheck(True, '購入導線と規制商品シグナルあり')
+        return AnalysisPrecheck(False, '購入導線または規制商品の具体的表示がありません')
+    return AnalysisPrecheck(False, '分析対象カテゴリを確認できません')
+
+
 def _decide_phishing(domain_info: dict, scan_result: dict, analysis) -> ReportDecision:
     if analysis.confidence < MIN_AI_CONFIDENCE:
         return ReportDecision(False, f'AI確信度不足 ({analysis.confidence}%)')
@@ -82,7 +129,12 @@ def _decide_phishing(domain_info: dict, scan_result: dict, analysis) -> ReportDe
         and bool(categories & MALICIOUS_CATEGORIES)
     )
     feed_confirmed = domain_info.get('known_phishing') is True
-    if not (urlscan_confirmed or feed_confirmed):
+    domain_page_confirmed = (
+        domain_info.get('candidate_kind') == 'brand_impersonation'
+        and int(domain_info.get('score', 0) or 0) >= 7
+        and _has_signal(scan_result, 'credential')
+    )
+    if not (urlscan_confirmed or feed_confirmed or domain_page_confirmed):
         return ReportDecision(False, '独立した脅威情報による確認が不足しています')
 
     sources = []
@@ -90,6 +142,8 @@ def _decide_phishing(domain_info: dict, scan_result: dict, analysis) -> ReportDe
         sources.append('OpenPhish')
     if urlscan_confirmed:
         sources.append(f"urlscan(score={scan_result.get('urlscan_score')})")
+    if domain_page_confirmed:
+        sources.append('不審ドメイン＋認証入力画面')
     evidence = _base_evidence(
         analysis,
         f"情報源={', '.join(sources)}; 偽装={impersonation}",
@@ -113,9 +167,18 @@ def _decide_commerce(category: str, domain_info: dict, scan_result: dict, analys
             return ReportDecision(False, '架空・欺瞞的な販売の具体的証拠がありません')
         red_flag_count = int(getattr(analysis, 'red_flag_count', 0) or 0)
         fraud_signals = (scan_result.get('page_signals') or {}).get('fraud') or []
-        if red_flag_count < 2 or len(fraud_signals) < 2:
+        vocabulary_score = int(scan_result.get('vocabulary_score', 0) or 0)
+        vocabulary_categories = set(scan_result.get('vocabulary_categories') or [])
+        corroborated_vocabulary = (
+            vocabulary_score >= MIN_VOCABULARY_REVIEW_SCORE
+            and len(vocabulary_categories) >= 2
+        )
+        if red_flag_count < 2 or not (len(fraud_signals) >= 2 or corroborated_vocabulary):
             return ReportDecision(False, '独立した詐欺通販の赤旗が2種類以上確認できません')
         details = str(getattr(analysis, 'red_flags', '') or '').strip()
+        if corroborated_vocabulary:
+            evidence = ','.join(str(value) for value in scan_result.get('vocabulary_evidence', [])[:4])
+            details = f'{details}; 語彙スコア={vocabulary_score} ({evidence})'
         label = '詐欺通販サイト（要確認）'
         expected_kind = 'suspicious_shop'
     elif category == 'counterfeit_goods':

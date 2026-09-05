@@ -67,6 +67,7 @@ if [ ! -f ".env" ]; then
         echo ""
         echo "  1. URLSCAN_API_KEY  : https://urlscan.io/user/signup"
         echo "  2. GEMINI_API_KEY   : https://aistudio.google.com/app/apikey"
+        echo "  3. SUPABASE_*       : Project URL, anon key, user email/password"
         echo ""
         echo "  .env ファイルを開きます..."
         if command -v open &> /dev/null; then
