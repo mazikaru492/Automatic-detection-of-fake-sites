@@ -17,6 +17,18 @@ if errorlevel 1 (
 
 for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYTHON_VER=%%v
 echo [OK] Python %PYTHON_VER% detected
+for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VER%") do (
+    if %%a LSS 3 (
+        echo [ERROR] Python 3.10 or newer is required.
+        pause
+        exit /b 1
+    )
+    if %%a EQU 3 if %%b LSS 10 (
+        echo [ERROR] Python 3.10 or newer is required.
+        pause
+        exit /b 1
+    )
+)
 
 if not exist ".env" (
     if exist ".env.example" (
@@ -25,19 +37,9 @@ if not exist ".env" (
         echo          Copying .env.example to .env...
         copy ".env.example" ".env" > nul
         echo.
-        echo ================================================================
-        echo  .env was created. Please open it and verify the API keys.
-        echo ================================================================
-        echo.
-echo  1. URLSCAN_API_KEY
-echo  2. GEMINI_API_KEY
-echo  3. SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_EMAIL / SUPABASE_PASSWORD
-        echo.
-        echo  After setting the keys, run start.bat again.
-        echo ================================================================
-        start notepad .env
-        pause
-        exit /b 0
+        echo [OK] .env was created.
+        echo      API keys and your approved Supabase login are entered in the app.
+        echo      The shared Supabase connection is managed by the administrator.
     ) else (
         echo [ERROR] .env.example was not found.
         pause

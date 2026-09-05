@@ -22,11 +22,16 @@ from app_config import (
 )
 from key_manager import (
     GEMINI_KEY_NAME,
-    SUPABASE_ANON_KEY_NAME,
     SUPABASE_PASSWORD_NAME,
     URLSCAN_KEY_NAME,
     load_all_keys,
     save_api_key,
+)
+from shared_backend import (
+    DEFAULT_SHARED_BACKEND_PATH,
+    SharedBackendConfig,
+    SharedBackendConfigurationError,
+    load_shared_backend_config,
 )
 COLORS = {'bg_dark': '#0a0e1a', 'bg_panel': '#0f1628', 'bg_card': '#151e35', 'bg_input': '#1a2545', 'accent_cyan': '#00d4ff', 'accent_blue': '#4d9fff', 'accent_green': '#00ff88', 'accent_red': '#ff4757', 'accent_orange': '#ffa502', 'text_primary': '#e8f4f8', 'text_secondary': '#7fa3c0', 'text_dim': '#3d5a78', 'border': '#1e3a5a', 'border_glow': '#00d4ff33'}
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -310,11 +315,14 @@ class MainWindow(QMainWindow):
         self._learning_minimum_per_class = DEFAULT_LIMITS.learning_minimum_per_class
         self._learning_max_examples = DEFAULT_LIMITS.learning_max_examples
         self._scan_workers = 4
+        self._shared_backend: SharedBackendConfig | None = None
+        self._shared_backend_error = ''
         self.setWindowTitle('詐欺サイト自動検知システム — CYCOT サイバーパトロール')
         self.setMinimumSize(1280, 800)
         self.resize(1400, 900)
         self.setStyleSheet(STYLE_SHEET)
         self._setup_ui()
+        self._refresh_shared_backend()
         self._scan_banner.hide()
         self._load_env()
         self._update_status('待機中', 'inactive')
@@ -379,25 +387,23 @@ class MainWindow(QMainWindow):
         logo_layout.addWidget(sub_label)
         layout.addLayout(logo_layout)
         layout.addWidget(self._make_separator())
-        api_group = QGroupBox('🔑 API キー設定')
+        api_group = QGroupBox('🔑 API キー・ログイン設定')
         api_layout = QVBoxLayout(api_group)
         api_layout.setSpacing(10)
         self._urlscan_input = ApiKeyInput('urlscan.io API キー', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'https://urlscan.io/user/signup')
         self._gemini_input = ApiKeyInput('Gemini API キー', 'AIzaSy...', 'https://aistudio.google.com/app/apikey')
         api_layout.addWidget(self._urlscan_input)
         api_layout.addWidget(self._gemini_input)
-        self._supabase_url_input = QLineEdit()
-        self._supabase_url_input.setPlaceholderText('https://xxxxx.supabase.co')
-        self._supabase_url_input.setToolTip('Supabase Project URL（https://*.supabase.co）')
         self._supabase_email_input = QLineEdit()
-        self._supabase_email_input.setPlaceholderText('Supabaseログインメール')
-        self._supabase_anon_input = ApiKeyInput('Supabase 匿名キー', 'sb_publishable_...')
+        self._supabase_email_input.setPlaceholderText('管理者から通知されたログインメール')
+        self._supabase_email_input.setToolTip('管理者が事前登録した、このアプリ専用の利用者メールアドレス')
         self._supabase_password_input = ApiKeyInput('Supabase パスワード', 'OS資格情報へ暗号化保存')
-        api_layout.addWidget(QLabel('Supabase Project URL'))
-        api_layout.addWidget(self._supabase_url_input)
+        self._shared_backend_status = QLabel('共通Supabase: 設定確認中')
+        self._shared_backend_status.setObjectName('field_label')
+        self._shared_backend_status.setWordWrap(True)
+        api_layout.addWidget(self._shared_backend_status)
         api_layout.addWidget(QLabel('Supabase ログインメール'))
         api_layout.addWidget(self._supabase_email_input)
-        api_layout.addWidget(self._supabase_anon_input)
         api_layout.addWidget(self._supabase_password_input)
         save_btn = QPushButton('💾  認証情報を安全に保存')
         save_btn.setObjectName('btn_secondary')
@@ -660,11 +666,37 @@ class MainWindow(QMainWindow):
         line.setStyleSheet(f"color: {COLORS['border']};")
         return line
 
+    def _refresh_shared_backend(self) -> bool:
+        try:
+            self._shared_backend = load_shared_backend_config()
+            self._shared_backend_error = ''
+            self._shared_backend_status.setText(
+                f'共通Supabase: {self._shared_backend.display_name}（接続設定済み）'
+            )
+            self._shared_backend_status.setStyleSheet(
+                f"color: {COLORS['accent_green']}; font-size: 12px;"
+            )
+            self._shared_backend_status.setToolTip(
+                'Project URLとPublishable keyは管理者が共通設定済みです。'
+                '利用者が入力する必要はありません。'
+            )
+            return True
+        except SharedBackendConfigurationError as exc:
+            self._shared_backend = None
+            self._shared_backend_error = str(exc)
+            self._shared_backend_status.setText('共通Supabase: 管理者設定待ち')
+            self._shared_backend_status.setStyleSheet(
+                f"color: {COLORS['accent_orange']}; font-size: 12px;"
+            )
+            self._shared_backend_status.setToolTip(
+                f'{exc}\n設定ファイル: {DEFAULT_SHARED_BACKEND_PATH}'
+            )
+            return False
+
     def _load_env(self) -> None:
         saved_keys = load_all_keys()
         urlscan_val = saved_keys.get(URLSCAN_KEY_NAME, "")
         gemini_val = saved_keys.get(GEMINI_KEY_NAME, "")
-        supabase_anon_val = saved_keys.get(SUPABASE_ANON_KEY_NAME, "")
         supabase_password_val = saved_keys.get(SUPABASE_PASSWORD_NAME, "")
 
         env_path = Path(__file__).parent.parent / '.env'
@@ -685,9 +717,7 @@ class MainWindow(QMainWindow):
 
         self._urlscan_input.set_value(urlscan_val or env_values.get('URLSCAN_API_KEY', ''))
         self._gemini_input.set_value(gemini_val or env_values.get('GEMINI_API_KEY', ''))
-        self._supabase_url_input.setText(env_values.get('SUPABASE_URL', ''))
         self._supabase_email_input.setText(env_values.get('SUPABASE_EMAIL', ''))
-        self._supabase_anon_input.set_value(supabase_anon_val or env_values.get('SUPABASE_ANON_KEY', ''))
         self._supabase_password_input.set_value(supabase_password_val or env_values.get('SUPABASE_PASSWORD', ''))
         self._excel_path_input.setText(env_values.get('EXCEL_TEMPLATE_PATH', DEFAULT_TEMPLATE_PATH))
         self._report_output_input.setText(env_values.get('REPORT_OUTPUT_DIR', DEFAULT_REPORT_OUTPUT_DIR))
@@ -740,23 +770,21 @@ class MainWindow(QMainWindow):
     def _save_env(self) -> None:
         u_key = self._urlscan_input.value
         g_key = self._gemini_input.value
-        s_key = self._supabase_anon_input.value
         s_password = self._supabase_password_input.value
 
         saved = [
             save_api_key(URLSCAN_KEY_NAME, u_key),
-            save_api_key(GEMINI_KEY_NAME, g_key),
-            save_api_key(SUPABASE_ANON_KEY_NAME, s_key),
             save_api_key(SUPABASE_PASSWORD_NAME, s_password),
         ]
+        if g_key:
+            saved.append(save_api_key(GEMINI_KEY_NAME, g_key))
         if not all(saved):
             QMessageBox.critical(self, '保存エラー', 'OSの資格情報マネージャーへ保存できませんでした。秘密情報は平文保存していません。')
             return
 
         env_path = Path(__file__).parent.parent / '.env'
         content = (
-            'URLSCAN_API_KEY=\nGEMINI_API_KEY=\nSUPABASE_ANON_KEY=\nSUPABASE_PASSWORD=\n'
-            f'SUPABASE_URL={self._supabase_url_input.text().strip()}\n'
+            'URLSCAN_API_KEY=\nGEMINI_API_KEY=\nSUPABASE_PASSWORD=\n'
             f'SUPABASE_EMAIL={self._supabase_email_input.text().strip()}\n'
             f'REPORTER_NAME={self._reporter_name_input.text().strip()}\n'
             f'EXCEL_TEMPLATE_PATH={self._excel_path_input.text()}\n'
@@ -803,14 +831,20 @@ class MainWindow(QMainWindow):
         if self._llm_enabled_check.isChecked() and not self._gemini_input.value:
             QMessageBox.warning(self, '入力エラー', 'Gemini APIキーを入力してください。\n\n取得先: https://aistudio.google.com/app/apikey')
             return False
-        if not self._supabase_url_input.text().strip():
-            QMessageBox.warning(self, '入力エラー', 'Supabase Project URLを入力してください。')
+        if not self._refresh_shared_backend():
+            QMessageBox.warning(
+                self,
+                '管理者設定エラー',
+                '共通Supabaseへ接続する準備が完了していません。\n'
+                '管理者へ連絡してください。\n\n'
+                f'{self._shared_backend_error}\n\n設定ファイル: {DEFAULT_SHARED_BACKEND_PATH}',
+            )
             return False
         if not self._supabase_email_input.text().strip():
-            QMessageBox.warning(self, '入力エラー', 'Supabaseログインメールを入力してください。')
+            QMessageBox.warning(self, '入力エラー', '管理者から通知されたログインメールを入力してください。')
             return False
-        if not self._supabase_anon_input.value or not self._supabase_password_input.value:
-            QMessageBox.warning(self, '入力エラー', 'Supabase匿名キーとログインパスワードを入力してください。')
+        if not self._supabase_password_input.value:
+            QMessageBox.warning(self, '入力エラー', 'Supabaseログインパスワードを入力してください。')
             return False
         if not self._excel_path_input.text().strip():
             QMessageBox.warning(self, '入力エラー', 'Excelテンプレートを選択してください。')
@@ -852,8 +886,12 @@ class MainWindow(QMainWindow):
         self._last_excel_report_path = ''
         save_api_key(URLSCAN_KEY_NAME, self._urlscan_input.value)
         save_api_key(GEMINI_KEY_NAME, self._gemini_input.value)
-        save_api_key(SUPABASE_ANON_KEY_NAME, self._supabase_anon_input.value)
         save_api_key(SUPABASE_PASSWORD_NAME, self._supabase_password_input.value)
+
+        shared_backend = self._shared_backend
+        if shared_backend is None:
+            QMessageBox.warning(self, '管理者設定エラー', '共通Supabase設定を読み込めません。')
+            return
 
         self._scan_banner.show()
         self._scan_banner.raise_()
@@ -867,10 +905,11 @@ class MainWindow(QMainWindow):
             urlscan_api_key=self._urlscan_input.value,
             gemini_api_key=self._gemini_input.value,
             max_scan_count=self._max_scan_spin.value(),
-            supabase_url=self._supabase_url_input.text().strip(),
-            supabase_anon_key=self._supabase_anon_input.value,
+            supabase_url=shared_backend.project_url,
+            supabase_publishable_key=shared_backend.publishable_key,
             supabase_email=self._supabase_email_input.text().strip(),
             supabase_password=self._supabase_password_input.value,
+            supabase_allowed_custom_host=shared_backend.allowed_custom_host,
             scan_workers=self._scan_workers,
             urlscan_submission_enabled=self._urlscan_submit_check.isChecked(),
             ct_enabled=self._ct_enabled_check.isChecked(),
@@ -967,12 +1006,16 @@ class MainWindow(QMainWindow):
         review_failures: list[str] = []
         try:
             from supabase_repository import SupabaseRepository
+            if not self._refresh_shared_backend() or self._shared_backend is None:
+                raise RuntimeError(
+                    f'共通Supabase設定を読み込めません: {self._shared_backend_error}'
+                )
             repository = SupabaseRepository(
-                self._supabase_url_input.text().strip(),
-                self._supabase_anon_input.value,
+                self._shared_backend.project_url,
+                self._shared_backend.publishable_key,
                 self._supabase_email_input.text().strip(),
                 self._supabase_password_input.value,
-                allowed_custom_host=os.getenv('SUPABASE_ALLOWED_HOST', ''),
+                allowed_custom_host=self._shared_backend.allowed_custom_host,
             )
             repository.connect()
             for row in rows:
@@ -1004,14 +1047,14 @@ class MainWindow(QMainWindow):
                     self._log_view.append_log(
                         'WARNING',
                         '⚠️ レビューは保存済みですが自動学習は見送りました。'
-                        '202609030002_online_learning.sql の適用を確認してください: '
+                        '202609060001_shared_trusted_learning.sql の適用を確認してください: '
                         f'{learning_exc}',
                     )
         except Exception as exc:
             QMessageBox.critical(
                 self, 'レビュー保存エラー',
                 f'Supabaseへレビュー履歴を保存できませんでした。\n'
-                f'202609030001_spec_v11_history.sql の適用を確認してください。\n\n{exc}'
+                f'利用者の許可登録と最新マイグレーションを確認してください。\n\n{exc}'
             )
             return
         finally:
@@ -1094,7 +1137,11 @@ class MainWindow(QMainWindow):
             self._log_view.append_log('INFO', f'🧠 自動学習: {result.reason}')
             return
 
-        version = repository.publish_learning_model(result.model.as_dict(), result.metrics)
+        version = repository.publish_learning_model(
+            result.model.as_dict(),
+            result.metrics,
+            expected_parent_version=current_model.model_version if current_model else '',
+        )
         self._learning_status = {
             'status': f'更新済み ({len(examples)}件)',
             'model_version': version,

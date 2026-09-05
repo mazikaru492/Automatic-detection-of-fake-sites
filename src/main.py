@@ -19,9 +19,9 @@ from domain_metadata import DomainMetadataResolver
 from online_learning import LearningModel, build_feature_vector
 from url_audit_log import UrlAuditLog
 from supabase_repository import SupabaseRepository
+from shared_backend import load_shared_backend_config
 from key_manager import (
     GEMINI_KEY_NAME,
-    SUPABASE_ANON_KEY_NAME,
     SUPABASE_PASSWORD_NAME,
     URLSCAN_KEY_NAME,
     get_api_key,
@@ -47,16 +47,17 @@ def load_config() -> dict:
         raise ValueError('AUTOMATIC_REPORTING_ENABLED=true は安全上許可されていません')
     urlscan_key = get_api_key(URLSCAN_KEY_NAME) or os.getenv('URLSCAN_API_KEY', '')
     gemini_key = get_api_key(GEMINI_KEY_NAME) or os.getenv('GEMINI_API_KEY', '')
-    supabase_anon_key = get_api_key(SUPABASE_ANON_KEY_NAME) or os.getenv('SUPABASE_ANON_KEY', '')
     supabase_password = get_api_key(SUPABASE_PASSWORD_NAME) or os.getenv('SUPABASE_PASSWORD', '')
+    shared_backend = load_shared_backend_config()
     config = {
         'urlscan_api_key': urlscan_key,
         'gemini_api_key': gemini_key,
         'max_scan_count': limits.max_scan_count,
         'queue_size': limits.queue_size,
         'features': features,
-        'supabase_url': os.getenv('SUPABASE_URL', ''),
-        'supabase_anon_key': supabase_anon_key,
+        'supabase_url': shared_backend.project_url,
+        'supabase_publishable_key': shared_backend.publishable_key,
+        'supabase_allowed_custom_host': shared_backend.allowed_custom_host,
         'supabase_email': os.getenv('SUPABASE_EMAIL', ''),
         'supabase_password': supabase_password,
     }
@@ -65,11 +66,14 @@ def load_config() -> dict:
         missing.append('URLSCAN_API_KEY')
     if features.llm_enabled and not config['gemini_api_key']:
         missing.append('GEMINI_API_KEY')
-    for key in ('supabase_url', 'supabase_anon_key', 'supabase_email', 'supabase_password'):
+    for key in ('supabase_email', 'supabase_password'):
         if not config[key]:
             missing.append(key.upper())
     if missing:
-        logger.error(f"❌ 必須の環境変数が設定されていません: {', '.join(missing)}\n   .env ファイルを確認するか、GUIからキーを保存してください")
+        logger.error(
+            f"❌ 必須設定がありません: {', '.join(missing)}\n"
+            "   GUIで認証情報を保存するか、管理者から発行された情報を確認してください"
+        )
         sys.exit(1)
     return config
 
@@ -94,12 +98,12 @@ class Pipeline:
         self._analyzer = ScamAnalyzer(config['gemini_api_key']) if features.llm_enabled else None
         self._metadata_resolver = DomainMetadataResolver()
         self._repository = SupabaseRepository(
-            config['supabase_url'], config['supabase_anon_key'],
+            config['supabase_url'], config['supabase_publishable_key'],
             config['supabase_email'], config['supabase_password'],
-            allowed_custom_host=os.getenv('SUPABASE_ALLOWED_HOST', ''),
+            allowed_custom_host=config['supabase_allowed_custom_host'],
         )
         config['supabase_password'] = ''
-        config['supabase_anon_key'] = ''
+        config['supabase_publishable_key'] = ''
         self._running = True
         self._scan_count = 0
         self._scam_count = 0
@@ -119,7 +123,7 @@ class Pipeline:
         )
         logger.info('=' * 60)
         self._repository.connect()
-        logger.info('🔐 Supabase Auth・RLS接続を確認しました')
+        logger.info('🔐 共通Supabaseへ許可済み利用者として接続しました')
         if self._config['features'].automatic_learning_enabled:
             try:
                 model_payload = self._repository.get_active_learning_model()

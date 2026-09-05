@@ -6,13 +6,13 @@
 
 ## 🚀 はじめに
 
-パソコン操作に慣れていない方は、上から順番に進めてください。最初の1回だけPython、urlscan.io、Supabaseの準備が必要です。
+パソコン操作に慣れていない方は、上から順番に進めてください。Supabaseの接続先は管理者が設定済みのため、利用者がURLやAPIキーを設定する必要はありません。
 
 | 必要なもの | 料金 | 用途 |
 |---|---|---|
 | Python 3.10以上 | 無料 | このアプリを動かすためのソフト |
 | urlscan.io APIキー | 無料枠あり | 不審なサイトを安全な外部環境で確認するための鍵 |
-| Supabaseプロジェクト | 無料枠あり | 検出履歴やレビュー結果を保存する場所 |
+| 管理者から発行されたログイン情報 | 無料 | 共通の検出履歴と学習モデルを安全に使うため |
 | Gemini APIキー | 任意 | AI補助分析を使う場合だけ必要 |
 
 ---
@@ -33,9 +33,8 @@ Pythonが入っていない場合は、[Python公式ダウンロードページ]
 
 1. このプロジェクトのフォルダーを開きます。
 2. `start.bat`をダブルクリックします。
-3. 初回は`.env`が作成され、メモ帳が開きます。APIキーやパスワードは書かず、そのままメモ帳を閉じます。
-4. もう一度`start.bat`をダブルクリックします。
-5. 必要なライブラリの準備後、アプリ画面が開きます。
+3. 初回は`.env`と必要なライブラリが自動で準備されます。
+4. アプリ画面が開いたら、APIキーと管理者から通知されたログイン情報を入力します。
 
 初回起動はライブラリをインストールするため、数分かかる場合があります。
 
@@ -69,7 +68,7 @@ chmod +x start.sh
 ./start.sh
 ```
 
-初回に`.env`が作成された場合は、APIキーやパスワードを書かずに閉じ、もう一度`./start.sh`を実行します。
+初回は`.env`と必要なライブラリが自動で準備され、そのままアプリ画面が開きます。
 
 ---
 
@@ -88,22 +87,16 @@ urlscan.ioを利用するための、自分専用の文字列です。パスワ�
 
 > ⚠️ APIキーをREADME、ソースコード、共有画面へ貼り付けないでください。
 
-### 2. Supabaseを準備する
+### 2. 管理者からSupabaseログイン情報を受け取る
 
-Supabaseは、このアプリが「すでに調べたURL」「判定結果」「人が確認した結果」を記録するための保存場所です。
+Supabaseは、「すでに調べたURL」「人が確認した結果」「共有学習モデル」を全利用者で共有する保存場所です。
 
-1. [Supabase公式ダッシュボード](https://supabase.com/dashboard)を開き、アカウントを作成します。
-2. 「New project」から新しいプロジェクトを作成します。
-3. プロジェクトの「SQL Editor」を開きます。
-4. 次の3ファイルの中身を、上から順番に貼り付けて実行します。
+利用できるのは、管理者が事前登録した信頼できる人だけです。管理者から次の2つを受け取ってください。
 
-   1. `supabase/migrations/202609020001_detection_schema.sql`
-   2. `supabase/migrations/202609030001_spec_v11_history.sql`
-   3. `supabase/migrations/202609030002_online_learning.sql`
+- このアプリ専用のログインメールアドレス
+- このアプリ専用のログインパスワード
 
-5. 「Authentication」→「Users」を開き、このアプリで使うメールアドレスとパスワードの利用者を作成します。
-
-Supabaseの利用者については、[Supabase公式の利用者説明](https://supabase.com/docs/guides/auth/users)も参照できます。
+Supabase管理画面のアカウントやDatabase Passwordとは別物です。Project URLとPublishable keyはアプリに共通設定されているため、利用者には不要です。
 
 ### 3. Gemini APIキーは必要な場合だけ取得する
 
@@ -115,7 +108,7 @@ Gemini補助分析を使わない場合、この設定は不要です。使う�
 
 ## 📝 アプリ画面へ入力する内容
 
-アプリ左側の設定欄へ、次の7項目を入力します。
+アプリ左側の設定欄へ、次の5項目を入力します。
 
 ### 1. urlscan.io APIキー
 
@@ -124,33 +117,15 @@ Gemini補助分析を使わない場合、この設定は不要です。使う�
 - 役割: urlscan.ioの検索やスキャン機能を利用する
 - 注意: 他人へ見せない。GitHubやREADMEへ書かない
 
-### 2. Supabase Project URL
+### 2. Supabase利用者のメールアドレスとパスワード
 
-- 入れるもの: 作成したSupabaseプロジェクトのURL
-- 入力例: `https://abcdefghijk.supabase.co`
-- 入手場所: Supabaseで対象プロジェクトを開き、「Connect」に表示されるProject URL
-- 間違いやすい点: URLの最後へ`/rest/v1/`を付けない
-
-ブラウザーでSupabaseを開くためのURLではなく、必ずProject URLをコピーしてください。
-
-### 3. Supabase Publishable key
-
-- 入れるもの: `sb_publishable_`から始まる長い文字列
-- 入手場所: Supabaseの「Connect」、または「Settings」→「API Keys」
-- 役割: このアプリがSupabaseへ接続するための鍵
-- 注意: `sb_secret_`から始まるSecret keyや、service_roleキーは絶対に入力しない
-
-Project URLとPublishable keyの場所は、[Supabase公式APIキー説明](https://supabase.com/docs/guides/getting-started/api-keys)でも確認できます。
-
-### 4. Supabase利用者のメールアドレスとパスワード
-
-- 入れるもの: Supabaseの「Authentication」→「Users」で作成した利用者のメールアドレスとパスワード
-- 役割: 誰がデータへ接続しているかを確認する
+- 入れるもの: 管理者から通知された、このアプリ専用のメールアドレスとパスワード
+- 役割: 許可された利用者かを確認し、レビュー担当者を監査履歴へ残す
 - 間違いやすい点: Supabase管理画面へログインするアカウントや、プロジェクト作成時のDatabase Passwordとは別のもの
 
-このアプリ専用の利用者を1人作り、その情報を入力してください。
+利用者同士で同じパスワードを共有せず、必ず一人ずつ別のアカウントを使ってください。
 
-### 5. 報告者の氏名
+### 3. 報告者の氏名
 
 - 入れるもの: 検出結果を確認する人の氏名
 - 入力例: `山田 太郎`
@@ -158,7 +133,7 @@ Project URLとPublishable keyの場所は、[Supabase公式APIキー説明](http
 
 アカウント名ではありません。実際に内容を確認する担当者名を入力してください。
 
-### 6. Excelテンプレート
+### 4. Excelテンプレート
 
 - 入れるもの: 結果を書き込む元のExcelファイル
 - 既定値: `テンプレート/CYCOTサイパト実施結果（京都テック、氏名欄あり）_.xlsx`
@@ -166,7 +141,7 @@ Project URLとPublishable keyの場所は、[Supabase公式APIキー説明](http
 
 通常は最初から入っているテンプレートをそのまま使えます。ここには保存先フォルダーを指定しないでください。
 
-### 7. 検出結果の保存先
+### 5. 検出結果の保存先
 
 - 入れるもの: 完成したExcelやCSVを保存するフォルダー
 - 既定値: `検出結果/`
@@ -228,15 +203,17 @@ Project URLとPublishable keyの場所は、[Supabase公式APIキー説明](http
 
 ## 🧠 自動学習の使い方
 
-自動学習は、人が確定したレビューだけを教師データとして使います。アプリ自身の予測を正解として学習することはありません。
+自動学習は、許可された全利用者が確定したレビューを共通の教師データとして使います。アプリ自身の予測を正解として学習することはありません。
 
 1. 検出結果を人が確認します。
 2. 正常な候補を「問題なし」にします。
 3. 不審と確認した候補を「疑いが強い」または「資料作成済み」にします。
 4. 陽性例と陰性例がそれぞれ20件に達すると、学習と評価が始まります。
-5. 評価基準を満たしたモデルだけが保存され、次回の監視から使われます。
+5. 評価基準を満たしたモデルだけが共通モデルとして保存され、全利用者の次回の監視から使われます。
 
 最初に「教師データ収集中」や「例待ち」と表示されるのは正常です。誤検知を減らすため、不審な例だけでなく「問題なし」の例も登録してください。
+
+同時に複数人が学習しても、古いモデルを基にした結果で新しいモデルを上書きしないよう競合を検出します。誰が登録したレビューかは監査履歴に残ります。
 
 自動学習は候補を探すための補助機能です。モデルだけで通報、違法性の確定、レポート確定は行いません。
 
@@ -263,10 +240,10 @@ CSVには日本語の見出しが付き、日時、処理、URL、ドメイン�
 
 ### Supabaseへ接続できない
 
-- 3つのSQLを順番に実行したか確認する
-- Project URLに`/rest/v1/`が付いていないか確認する
-- Publishable keyを使用しているか確認する
-- Authentication利用者のメールアドレスとパスワードを確認する
+- 管理者から通知されたメールアドレスとパスワードか確認する
+- 「共通Supabase: 接続設定済み」と表示されているか確認する
+- 「許可一覧にありません」と出る場合は、管理者へ事前登録を依頼する
+- 管理者は4つのSQLが適用済みか確認する
 
 ### API制限エラーが出る
 
@@ -338,11 +315,48 @@ macOSまたはLinux:
 src/                  アプリ本体
 tests/                自動テスト
 supabase/migrations/  Supabase用SQL
+config/                管理者が設定する共通接続先
 data/                 判定用データ
 テンプレート/          Excelテンプレート
 検出結果/              ExcelとCSVの出力先
 logs/                 URL履歴ログ
 ```
+
+## 🛠️ 管理者向け: 共通Supabaseの初期設定
+
+この作業は配布する管理者が1回だけ行います。一般利用者にはSupabaseのProject URLやPublishable keyを設定させません。
+
+1. [Supabase Dashboard](https://supabase.com/dashboard)で、このアプリ専用のプロジェクトを用意します。
+2. Supabase DashboardのAuthentication設定で、一般利用者による新規登録を無効にします。
+3. SQL Editorで次の4ファイルを上から順番に実行します。
+
+   1. `supabase/migrations/202609020001_detection_schema.sql`
+   2. `supabase/migrations/202609030001_spec_v11_history.sql`
+   3. `supabase/migrations/202609030002_online_learning.sql`
+   4. `supabase/migrations/202609060001_shared_trusted_learning.sql`
+
+4. `config/shared_backend.json`へProject URLと`sb_publishable_`で始まるPublishable keyを記入します。確認場所は[Supabase公式APIキー説明](https://supabase.com/docs/guides/getting-started/api-keys)を参照してください。
+5. AuthenticationのUsersで、利用者ごとに別のメールアドレスとパスワードを作成します。詳しくは[Supabase公式の利用者説明](https://supabase.com/docs/guides/auth/users)を参照してください。
+6. 作成した利用者のUUIDを、SQL Editorで許可一覧へ追加します。
+
+```sql
+insert into private.trusted_app_users (user_id, display_name)
+select id, '担当者名'
+from auth.users
+where email = 'user@example.com'
+on conflict (user_id) do update
+set display_name = excluded.display_name, active = true;
+```
+
+利用停止だけを行う場合は、履歴を保つためAuth利用者をすぐ削除せず、まず次を実行します。
+
+```sql
+update private.trusted_app_users
+set active = false
+where user_id = (select id from auth.users where email = 'user@example.com');
+```
+
+`sb_secret_`で始まるSecret key、service_roleキー、Database Passwordは配布物へ絶対に入れないでください。既存のAuth利用者は4番目のSQLを初めて適用した時点で許可一覧へ自動登録されます。それ以降に作る利用者は手順6が必要です。
 
 ## 📚 詳細な説明文書
 

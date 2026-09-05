@@ -58,7 +58,7 @@ def _validate_project_url(project_url: str, allowed_custom_host: str = '') -> st
         raise SupabaseConfigurationError('Supabase URL は認証情報を含まない https URL にしてください')
     if not (hostname.endswith('.supabase.co') or (allowed_custom_host and hostname == allowed_custom_host)):
         raise SupabaseConfigurationError(
-            'Supabase URL のホストが不正です。カスタムドメインは SUPABASE_ALLOWED_HOST で明示してください'
+            'Supabase URL のホストが不正です。カスタムドメインは共有設定で明示してください'
         )
     if parsed.port not in (None, 443) or parsed.path not in ('', '/') or parsed.query or parsed.fragment:
         raise SupabaseConfigurationError('Supabase URL はプロジェクトのルートURLだけを指定してください')
@@ -98,7 +98,7 @@ class SupabaseRepository:
     def __init__(
         self,
         project_url: str,
-        anon_key: str,
+        publishable_key: str,
         email: str,
         password: str,
         *,
@@ -107,16 +107,16 @@ class SupabaseRepository:
         session: Optional[requests.Session] = None,
     ) -> None:
         self._base_url = _validate_project_url(project_url, allowed_custom_host)
-        self._anon_key = anon_key.strip()
+        self._publishable_key = publishable_key.strip()
         self._email = email.strip()
         self._password = password
         self._timeout = max(2.0, min(float(timeout_seconds), 15.0))
         self._session = session or requests.Session()
         self._access_token = ''
         self._expires_at = 0.0
-        if not self._anon_key or not self._email or not self._password:
-            raise SupabaseConfigurationError('Supabase URL・匿名キー・メール・パスワードはすべて必須です')
-        if self._anon_key.startswith('sb_secret_') or _jwt_role(self._anon_key) == 'service_role':
+        if not self._publishable_key or not self._email or not self._password:
+            raise SupabaseConfigurationError('共有Supabase設定・メール・パスワードはすべて必須です')
+        if self._publishable_key.startswith('sb_secret_') or _jwt_role(self._publishable_key) == 'service_role':
             raise SupabaseConfigurationError('service_role/secret キーはデスクトップアプリへ設定できません')
         if len(self._email) > 254 or '@' not in self._email:
             raise SupabaseConfigurationError('Supabaseログインメールアドレスが不正です')
@@ -124,7 +124,10 @@ class SupabaseRepository:
     def connect(self) -> None:
         self._authenticate()
         if self._rpc('app_health', {}) is not True:
-            raise SupabaseConnectionError('SupabaseのRLS用RPCを確認できません。マイグレーションを適用してください')
+            raise SupabaseConnectionError(
+                'この利用者は共通Supabaseの許可一覧にありません。'
+                '管理者へ事前登録を依頼するか、最新マイグレーションを確認してください'
+            )
 
     def close(self) -> None:
         self._access_token = ''
@@ -136,7 +139,7 @@ class SupabaseRepository:
             response = self._session.post(
                 f'{self._base_url}/auth/v1/token',
                 params={'grant_type': 'password'},
-                headers={'apikey': self._anon_key, 'Content-Type': 'application/json'},
+                headers={'apikey': self._publishable_key, 'Content-Type': 'application/json'},
                 json={'email': self._email, 'password': self._password},
                 timeout=self._timeout,
             )
@@ -178,7 +181,7 @@ class SupabaseRepository:
                 response = self._session.post(
                     url,
                     headers={
-                        'apikey': self._anon_key,
+                        'apikey': self._publishable_key,
                         'Authorization': f'Bearer {self._access_token}',
                         'Content-Type': 'application/json',
                     },
@@ -344,10 +347,17 @@ class SupabaseRepository:
         result = self._rpc('get_active_learning_model', {})
         return result if isinstance(result, dict) else None
 
-    def publish_learning_model(self, model: dict, metrics: dict) -> str:
+    def publish_learning_model(
+        self,
+        model: dict,
+        metrics: dict,
+        *,
+        expected_parent_version: str = '',
+    ) -> str:
         result = self._rpc('publish_learning_model', {
             'p_model': model,
             'p_metrics': metrics,
+            'p_expected_parent_version': str(expected_parent_version)[:128],
         })
         version = str(result or '').strip()
         if not version:

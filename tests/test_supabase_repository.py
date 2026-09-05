@@ -62,6 +62,20 @@ class SupabaseRepositoryTests(unittest.TestCase):
             repository.connect()
         self.assertNotIn('do-not-echo', str(caught.exception))
 
+    def test_authenticated_but_unapproved_user_is_rejected(self):
+        session = FakeSession()
+        session.responses = [
+            FakeResponse(data={'access_token': 'user-token', 'expires_in': 3600}),
+            FakeResponse(data=False),
+        ]
+        repository = SupabaseRepository(
+            'https://demo.supabase.co', 'public-anon-key',
+            'unapproved@example.com', 'password', session=session,
+        )
+        from supabase_repository import SupabaseConnectionError
+        with self.assertRaisesRegex(SupabaseConnectionError, '許可一覧'):
+            repository.connect()
+
     def test_rejects_non_supabase_and_insecure_urls(self):
         for url in ('http://demo.supabase.co', 'https://127.0.0.1', 'https://example.com/path'):
             with self.subTest(url=url), self.assertRaises(SupabaseConfigurationError):
@@ -171,6 +185,22 @@ class SupabaseRepositoryTests(unittest.TestCase):
         self.assertIn('distinct on (candidate_id)', learning_migration)
         self.assertIn('rollback_learning_model', learning_migration)
 
+        shared_migration = (
+            Path(__file__).resolve().parents[1]
+            / 'supabase' / 'migrations' / '202609060001_shared_trusted_learning.sql'
+        ).read_text(encoding='utf-8').lower()
+        self.assertIn('private.trusted_app_users', shared_migration)
+        self.assertIn('private.require_trusted_user()', shared_migration)
+        self.assertIn('detection_candidates_shared_domain_hash_idx', shared_migration)
+        self.assertIn("where domain_hash = p_domain_hash", shared_migration)
+        self.assertNotIn(
+            'where owner_id = v_actor and domain_hash = p_domain_hash',
+            shared_migration,
+        )
+        self.assertIn('learning_models_one_active_shared_idx', shared_migration)
+        self.assertIn('p_expected_parent_version', shared_migration)
+        self.assertIn("where status = 'active'", shared_migration)
+
     def test_learning_operations_use_narrow_rpcs(self):
         session = FakeSession()
         session.responses = [
@@ -195,8 +225,13 @@ class SupabaseRepositoryTests(unittest.TestCase):
         self.assertEqual(len(repository.get_learning_examples(500)), 1)
         self.assertIsNotNone(repository.get_active_learning_model())
         self.assertEqual(repository.publish_learning_model(
-            {'model_version': 'model-v1'}, {'precision': 1.0}
+            {'model_version': 'model-v1'}, {'precision': 1.0},
+            expected_parent_version='model-v0',
         ), 'model-v1')
+        self.assertEqual(
+            session.calls[-1][1]['json']['p_expected_parent_version'],
+            'model-v0',
+        )
         rpc_names = [call[0].rsplit('/', 1)[-1] for call in session.calls[2:]]
         self.assertEqual(rpc_names, [
             'record_learning_example',

@@ -161,7 +161,7 @@ class GuiLearningIntegrationTests(unittest.TestCase):
             def get_active_learning_model(self):
                 return None
 
-            def publish_learning_model(self, model, metrics):
+            def publish_learning_model(self, model, metrics, **_kwargs):
                 self.published.append((model, metrics))
                 return model['model_version']
 

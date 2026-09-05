@@ -1,5 +1,4 @@
 import logging
-import os
 import queue
 import sys
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
@@ -37,9 +36,10 @@ class PipelineWorker(QThread):
         gemini_api_key: str,
         max_scan_count: int,
         supabase_url: str = '',
-        supabase_anon_key: str = '',
+        supabase_publishable_key: str = '',
         supabase_email: str = '',
         supabase_password: str = '',
+        supabase_allowed_custom_host: str = '',
         scan_workers: int = 4,
         urlscan_submission_enabled: bool = False,
         ct_enabled: bool = False,
@@ -53,9 +53,10 @@ class PipelineWorker(QThread):
         self._gemini_api_key = gemini_api_key
         self._max_scan_count = max_scan_count
         self._supabase_url = supabase_url
-        self._supabase_anon_key = supabase_anon_key
+        self._supabase_publishable_key = supabase_publishable_key
         self._supabase_email = supabase_email
         self._supabase_password = supabase_password
+        self._supabase_allowed_custom_host = supabase_allowed_custom_host
         self._scan_workers = max(1, min(int(scan_workers), 8))
         self._urlscan_submission_enabled = bool(urlscan_submission_enabled)
         self._ct_enabled = bool(ct_enabled)
@@ -107,15 +108,15 @@ class PipelineWorker(QThread):
         analyzer = ScamAnalyzer(self._gemini_api_key) if self._llm_enabled else None
         repository = SupabaseRepository(
             self._supabase_url,
-            self._supabase_anon_key,
+            self._supabase_publishable_key,
             self._supabase_email,
             self._supabase_password,
-            allowed_custom_host=os.getenv('SUPABASE_ALLOWED_HOST', ''),
+            allowed_custom_host=self._supabase_allowed_custom_host,
         )
         self._supabase_password = ''
-        self._supabase_anon_key = ''
+        self._supabase_publishable_key = ''
         repository.connect()
-        self.log_emitted.emit('INFO', '🔐 Supabase Auth・RLS接続を確認しました')
+        self.log_emitted.emit('INFO', '🔐 共通Supabaseへ許可済み利用者として接続しました')
         self.log_emitted.emit(
             'INFO',
             f'📝 URL履歴を自動保存: {audit_log.filter_passed_path} / '

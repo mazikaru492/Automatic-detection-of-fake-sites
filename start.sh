@@ -20,7 +20,7 @@ echo -e "${CYAN}================================================================
 echo ""
 
 # ---------------------------------------------------------------
-# Python バージョン確認（Python 3.9 以上を要求）
+# Python バージョン確認（Python 3.10 以上を要求）
 # ---------------------------------------------------------------
 check_python() {
     local python_cmd=""
@@ -40,12 +40,12 @@ check_python() {
     local major=$(echo "$version" | cut -d. -f1)
     local minor=$(echo "$version" | cut -d. -f2)
 
-    if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 9 ]); then
-        echo -e "${RED}[エラー] Python 3.9 以上が必要です（現在: $version）${NC}"
+    if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 10 ]); then
+        echo -e "${RED}[エラー] Python 3.10 以上が必要です（現在: $version）${NC}"
         exit 1
     fi
 
-    echo -e "${GREEN}[OK] Python $version を検出しました${NC}"
+    echo -e "${GREEN}[OK] Python $version を検出しました${NC}" >&2
     echo "$python_cmd"
 }
 
@@ -61,26 +61,9 @@ if [ ! -f ".env" ]; then
         echo "       .env.example から .env を作成します..."
         cp ".env.example" ".env"
         echo ""
-        echo -e "${YELLOW}================================================================${NC}"
-        echo -e "${YELLOW}  ★ 重要: .env ファイルにAPIキーを設定してください ★${NC}"
-        echo -e "${YELLOW}================================================================${NC}"
-        echo ""
-        echo "  1. URLSCAN_API_KEY  : https://urlscan.io/user/signup"
-        echo "  2. GEMINI_API_KEY   : https://aistudio.google.com/app/apikey"
-        echo "  3. SUPABASE_*       : Project URL, anon key, user email/password"
-        echo ""
-        echo "  .env ファイルを開きます..."
-        if command -v open &> /dev/null; then
-            open ".env"      # Mac
-        elif command -v xdg-open &> /dev/null; then
-            xdg-open ".env"  # Linux
-        else
-            echo "  エディタで .env を手動で編集してください"
-        fi
-        echo ""
-        echo "  APIキーを設定後、再度 ./start.sh を実行してください。"
-        echo "================================================================"
-        exit 0
+        echo -e "${GREEN}[OK] .env を作成しました。${NC}"
+        echo "     APIキーと許可済みSupabaseログインはアプリ画面で入力します。"
+        echo "     共通Supabaseの接続先は管理者が設定します。"
     else
         echo -e "${RED}[エラー] .env.example が見つかりません。リポジトリを正しくクローンしてください。${NC}"
         exit 1
